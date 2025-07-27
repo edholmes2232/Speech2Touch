@@ -1,0 +1,39 @@
+# BasedOnStyle: Microsoft
+# ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
+# IndentExternBlock: NoIndent
+# InlayHints: False
+
+AccessModifierOffset: -4
+AlignAfterOpenBracket: Align
+AlignTrailingComments: false
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Allman
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializersBeforeComma: true
+ColumnLimit: 120
+# Do not reformat the Doxygen-style comments in the d
+CommentPragmas: '^\\s*\\/\\*\\*\\!'
+FixNamespaceComments: false
+IncludeBlocks: Regroup
+IndentCaseLabels: false
+IndentWidth: 4
+IndentExternBlock: NoIndent
+NamespaceIndentation: None
+PenaltyReturnTypeOnItsOwnLine: 100
+PointerAlignment: Right
+SortIncludes: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeParens: ControlStatements
+Standard: c++14
+UseTab: Never
+BraceWrapping:
+  AfterExternBlock: false

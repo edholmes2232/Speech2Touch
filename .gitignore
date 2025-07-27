@@ -1,0 +1,48 @@
+# Build directories
+/build/
+/build*/
+**/build/
+**/build*/
+.cache/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+*.ninja
+*.ninja_log
+*.ninja_deps
+compile_commands.json
+
+# Executables and object files
+*.elf
+*.bin
+*.hex
+*.map
+*.obj
+*.o
+*.a
+*.so
+*.d
+*.dSYM/
+
+# VSCode settings
+.vscode/
+
+# User-specific files
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*~
+
+# Other
+.DS_Store
+Thumbs.db
+
+# Ignore generated documentation
+/docs/html/
+/docs/latex/
