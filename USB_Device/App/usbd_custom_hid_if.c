@@ -62,7 +62,7 @@
  */
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-#define DESC_2
+#define DESC_1
 /* USER CODE END PRIVATE_DEFINES */
 
 /**
