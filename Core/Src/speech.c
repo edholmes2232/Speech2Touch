@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "led.h"
 #include "pv_params.h"
 #include "pv_picovoice.h"
 #include "stm32wbxx_hal.h"
@@ -18,20 +19,21 @@ static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
 static uint8_t _uuid[UUID_SIZE];
 static pv_picovoice_t *_handle = NULL;
 
-static const float PORCUPINE_SENSITIVITY = 0.15f;
-static const float RHINO_SENSITIVITY = 0.15f;
+static const float PORCUPINE_SENSITIVITY = 0.9f;
+static const float RHINO_SENSITIVITY = 0.9f;
 static const float RHINO_ENDPOINT_DURATION_SEC = 1.0f;
 static const bool RHINO_REQUIRE_ENDPOINT = true;
 
 static void wake_word_callback(void)
 {
   printf("[wake word]\n");
-  // BSP_LED_On(LED_GREEN);
+  LED_SetState(LED_0, 1);
 }
 
 static void inference_callback(pv_inference_t *inference)
 {
   // BSP_LED_Off(LED_GREEN);
+  LED_SetState(LED_0, 0);
   printf("{\n");
   printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
   if (inference->is_understood)
@@ -51,6 +53,7 @@ static void inference_callback(pv_inference_t *inference)
   for (int32_t i = 0; i < 10; i++)
   {
     // BSP_LED_Toggle(LED_RED);
+    LED_SetState(LED_1, i % 2);
     HAL_Delay(30);
   }
   pv_inference_delete(inference);
@@ -81,7 +84,7 @@ uint8_t SPEECH_Init(void)
     printf("%.2x", _uuid[i]);
   }
 
-  printf("AUDIO starting...\n");
+  printf("\nAUDIO starting...\n");
   AUDIO_Start();
 
   char **message_stack = NULL;
@@ -128,9 +131,7 @@ uint8_t SPEECH_Init(void)
   }
   printf("Rhino context info: %s\r\n", rhino_context);
 
-  volatile int32_t frame_length = pv_picovoice_frame_length();
-
-  volatile int32_t sample_rate = pv_sample_rate();
+  printf("Picovoice expecting frame_length: %d, sample_rate: %d\n", pv_picovoice_frame_length(), pv_sample_rate());
 
   return EXIT_SUCCESS;
 }
@@ -138,20 +139,21 @@ uint8_t SPEECH_Init(void)
 // to be called in while loop
 uint8_t SPEECH_Process(void)
 {
+  static int16_t speech_buffer[512];
+
   const int16_t *buffer = AUDIO_GetBuffer();
 
   if (buffer)
   {
-    uint32_t start = HAL_GetTick();
+    memcpy(speech_buffer, buffer, 512 * sizeof(int16_t));
+
+    // uint32_t start = HAL_GetTick();
 
 #ifdef AUDIO_OVER_USART
     HAL_UART_Transmit(&huart1, (uint8_t *)buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
 #else
 
-    const pv_status_t status = pv_picovoice_process(_handle, buffer);
-    uint32_t end = HAL_GetTick();
-    volatile uint32_t elapsed = end - start;
-    printf("pv_picovoice_process took %lu ms\n", (end - start));
+    const pv_status_t status = pv_picovoice_process(_handle, speech_buffer);
     if (status != PV_STATUS_SUCCESS)
     {
       printf("Picovoice process failed: %s\n", pv_status_to_string(status));
