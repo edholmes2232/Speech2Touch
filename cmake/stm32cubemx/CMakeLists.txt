@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.22)
 enable_language(C ASM)
 # STM32CubeMX generated symbols (macros)
 set(MX_Defines_Syms 
-	USE_NUCLEO_64 
 	USE_HAL_DRIVER 
 	STM32WB55xx
     $<$<CONFIG:Debug>:DEBUG>
@@ -18,7 +17,6 @@ set(MX_Include_Dirs
     ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Inc/Legacy
     ${CMAKE_SOURCE_DIR}/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
     ${CMAKE_SOURCE_DIR}/Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc
-    ${CMAKE_SOURCE_DIR}/Drivers/BSP/P-NUCLEO-WB55.Nucleo
     ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32WBxx/Include
     ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include
 )
@@ -63,11 +61,6 @@ set(STM32_Drivers_Src
     ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_exti.c
     ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_sai.c
     ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_sai_ex.c
-    ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_usart.c
-    ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_usart_ex.c
-    ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_uart_ex.c
-    ${CMAKE_SOURCE_DIR}/Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal_uart.c
-    ${CMAKE_SOURCE_DIR}/Drivers/BSP/P-NUCLEO-WB55.Nucleo/stm32wbxx_nucleo.c
 )
 
 # Drivers Midllewares
