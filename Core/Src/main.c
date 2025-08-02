@@ -35,31 +35,31 @@
 /* USER CODE BEGIN PTD */
 typedef struct
 {
-    uint8_t reportId; // Report ID = 0x03 (3)
-                      // Collection: CA:TouchScreen CP:Finger
-    uint8_t DIG_TouchScreenFingerTipSwitch : 1; // Usage 0x000D0042: Tip Switch, Value = 0 to 1
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t DIG_TouchScreenFingerInRange : 1; // Usage 0x000D0032: In Range, Value = 0 to 1
-    uint8_t DIG_TouchScreenFingerConfidence : 1; // Usage 0x000D0047: Confidence, Value = 0 to 1
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint16_t GD_TouchScreenFingerX; // Usage 0x00010030: X, Value = 0 to 32767
-    uint16_t GD_TouchScreenFingerY; // Usage 0x00010031: Y, Value = 0 to 32767
-    uint16_t DIG_TouchScreenFingerWidth; // Usage 0x000D0048: Width, Value = 0 to 32767
-                                         // Usage 0x000D0049 Height, Value = 0 to 32767 <-- Ignored: REPORT_COUNT (1) is
-                                         // too small
-    uint16_t pad_8; // Pad
-    uint16_t DIG_TouchScreenFingerContactIdentifier[2]; // Usage 0x000D0051: Contact Identifier, Value = 0 to 32767
+  uint8_t reportId; // Report ID = 0x03 (3)
+                    // Collection: CA:TouchScreen CP:Finger
+  uint8_t DIG_TouchScreenFingerTipSwitch : 1; // Usage 0x000D0042: Tip Switch, Value = 0 to 1
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t DIG_TouchScreenFingerInRange : 1; // Usage 0x000D0032: In Range, Value = 0 to 1
+  uint8_t DIG_TouchScreenFingerConfidence : 1; // Usage 0x000D0047: Confidence, Value = 0 to 1
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint8_t : 1; // Pad
+  uint16_t GD_TouchScreenFingerX; // Usage 0x00010030: X, Value = 0 to 32767
+  uint16_t GD_TouchScreenFingerY; // Usage 0x00010031: Y, Value = 0 to 32767
+  uint16_t DIG_TouchScreenFingerWidth; // Usage 0x000D0048: Width, Value = 0 to 32767
+                                       // Usage 0x000D0049 Height, Value = 0 to 32767 <-- Ignored: REPORT_COUNT (1) is
+                                       // too small
+  uint16_t pad_8; // Pad
+  uint16_t DIG_TouchScreenFingerContactIdentifier[2]; // Usage 0x000D0051: Contact Identifier, Value = 0 to 32767
 } TouchScreenReport_t;
 
 // typedef struct
@@ -96,25 +96,25 @@ extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *rep
 
 void USB_ConnectionCallback(uint8_t state)
 {
-    _usb_connected = state;
-    // if (state)
-    // {
-    //     BSP_LED_On(LED_GREEN);
-    // }
-    // else
-    // {
-    //     BSP_LED_Off(LED_GREEN);
-    // }
+  _usb_connected = state;
+  // if (state)
+  // {
+  //     BSP_LED_On(LED_GREEN);
+  // }
+  // else
+  // {
+  //     BSP_LED_Off(LED_GREEN);
+  // }
 }
 
-// int _write(int le, char *ptr, int len)
-// {
-//     // This function is called by printf to send data to the UART
-//     // It sends 'len' bytes from 'ptr' to the UART
-//     HAL_UART_Transmit(COM1_UART, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-//     // Return the number of bytes written
-//     return len;
-// }
+#ifndef AUDIO_OVER_USART
+int _write(int le, char *ptr, int len)
+{
+  (void)le; // Unused parameter
+  HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+  return len;
+}
+#endif
 
 /* USER CODE END PFP */
 
@@ -166,73 +166,73 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-    SPEECH_Init();
+  SPEECH_Init();
 
-    printf("Waiting for USB connection...\r\n");
-    // while (_usb_connected == 0)
-    {
-        /* Wait for USB connection */
-        HAL_Delay(100);
-    }
-    printf("USB connected!\n");
+  printf("Waiting for USB connection...\r\n");
+  // while (_usb_connected == 0)
+  {
+    /* Wait for USB connection */
+    HAL_Delay(100);
+  }
+  printf("USB connected!\n");
 
-    touch_screen_report.reportId = 0x03;
-    touch_screen_report.DIG_TouchScreenFingerTipSwitch = 1;
-    touch_screen_report.DIG_TouchScreenFingerInRange = 1;
-    touch_screen_report.DIG_TouchScreenFingerConfidence = 1;
-    touch_screen_report.DIG_TouchScreenFingerContactIdentifier[0] = 1;
-    touch_screen_report.GD_TouchScreenFingerX = 100;
-    touch_screen_report.GD_TouchScreenFingerY = 100;
-    // touch_screen_report.DIG_TouchScreenContactCount = 1;
+  touch_screen_report.reportId = 0x03;
+  touch_screen_report.DIG_TouchScreenFingerTipSwitch = 1;
+  touch_screen_report.DIG_TouchScreenFingerInRange = 1;
+  touch_screen_report.DIG_TouchScreenFingerConfidence = 1;
+  touch_screen_report.DIG_TouchScreenFingerContactIdentifier[0] = 1;
+  touch_screen_report.GD_TouchScreenFingerX = 100;
+  touch_screen_report.GD_TouchScreenFingerY = 100;
+  // touch_screen_report.DIG_TouchScreenContactCount = 1;
 
-    while (1)
-    {
-        /*
-          // Wait for button press, then send a touch report
-          if (BSP_PB_GetState(BUTTON_SW1) == GPIO_PIN_RESET)
-          {
-              // Light up LED
-              BSP_LED_On(LED_BLUE);
-              HAL_Delay(10); // Debounce delay
-              BSP_LED_Off(LED_BLUE);
+  while (1)
+  {
+    /*
+      // Wait for button press, then send a touch report
+      if (BSP_PB_GetState(BUTTON_SW1) == GPIO_PIN_RESET)
+      {
+          // Light up LED
+          BSP_LED_On(LED_BLUE);
+          HAL_Delay(10); // Debounce delay
+          BSP_LED_Off(LED_BLUE);
 
-              static uint8_t counter = 0;
-              counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
+          static uint8_t counter = 0;
+          counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
 
-              // Send the touch report
-              // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report,
-          sizeof(touch_screen_report)); uint8_t x_coord_percentage = counter; uint8_t y_coord_percentage = counter;
+          // Send the touch report
+          // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report,
+      sizeof(touch_screen_report)); uint8_t x_coord_percentage = counter; uint8_t y_coord_percentage = counter;
 
-              printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
+          printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
 
-              uint8_t buff[5];
-              // Report ID
-              buff[0] = 0x03;
-              // LSB of X coordinate percentage * 100 (0... 10000)
-              buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
-              // MSB of X coordinate percentage * 100 (0... 10000)
-              buff[2] = (x_coord_percentage * 100) >> 8; //
-              // LSB of Y coordinate percentage * 100 (0... 10000)
-              buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
-              // MSB of Y coordinate percentage * 100 (0... 10000)
-              buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
-              USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
+          uint8_t buff[5];
+          // Report ID
+          buff[0] = 0x03;
+          // LSB of X coordinate percentage * 100 (0... 10000)
+          buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
+          // MSB of X coordinate percentage * 100 (0... 10000)
+          buff[2] = (x_coord_percentage * 100) >> 8; //
+          // LSB of Y coordinate percentage * 100 (0... 10000)
+          buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
+          // MSB of Y coordinate percentage * 100 (0... 10000)
+          buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
+          USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
 
-              HAL_Delay(100); // Debounce delay
-              buff[0] = 0x02;
-              USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
-              HAL_Delay(1000); // Debounce delay
-              // Turn off LED
-              // BSP_LED_Off(LED_BLUE);
-          }
-              */
+          HAL_Delay(100); // Debounce delay
+          buff[0] = 0x02;
+          USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
+          HAL_Delay(1000); // Debounce delay
+          // Turn off LED
+          // BSP_LED_Off(LED_BLUE);
+      }
+          */
 
-        SPEECH_Process();
+    SPEECH_Process();
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    }
+  }
   /* USER CODE END 3 */
 }
 
@@ -324,11 +324,11 @@ void PeriphCommonClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
-    __disable_irq();
-    while (1)
-    {
-    }
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -343,8 +343,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-    /* User can add his own implementation to report the file name and line number,
-       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
