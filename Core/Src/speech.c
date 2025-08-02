@@ -2,6 +2,7 @@
 #include "pv_params.h"
 #include "pv_picovoice.h"
 #include "stm32wbxx_hal.h"
+#include "usart.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -17,8 +18,8 @@ static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
 static uint8_t _uuid[UUID_SIZE];
 static pv_picovoice_t *_handle = NULL;
 
-static const float PORCUPINE_SENSITIVITY = 0.75f;
-static const float RHINO_SENSITIVITY = 0.5f;
+static const float PORCUPINE_SENSITIVITY = 0.15f;
+static const float RHINO_SENSITIVITY = 0.15f;
 static const float RHINO_ENDPOINT_DURATION_SEC = 1.0f;
 static const bool RHINO_REQUIRE_ENDPOINT = true;
 
@@ -127,6 +128,10 @@ uint8_t SPEECH_Init(void)
     }
     printf("Rhino context info: %s\r\n", rhino_context);
 
+    volatile int32_t frame_length = pv_picovoice_frame_length();
+
+    volatile int32_t sample_rate = pv_sample_rate();
+
     return EXIT_SUCCESS;
 }
 
@@ -137,7 +142,13 @@ uint8_t SPEECH_Process(void)
 
     if (buffer)
     {
+        uint32_t start = HAL_GetTick();
+        // HAL_UART_Transmit(&huart1, (uint8_t *)buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
+
         const pv_status_t status = pv_picovoice_process(_handle, buffer);
+        uint32_t end = HAL_GetTick();
+        volatile uint32_t elapsed = end - start;
+        printf("pv_picovoice_process took %lu ms\n", (end - start));
         if (status != PV_STATUS_SUCCESS)
         {
             printf("Picovoice process failed: %s\n", pv_status_to_string(status));
