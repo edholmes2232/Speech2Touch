@@ -2,7 +2,6 @@
 #include "pv_params.h"
 #include "pv_picovoice.h"
 #include "stm32wbxx_hal.h"
-#include "stm32wbxx_nucleo.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -26,12 +25,12 @@ static const bool RHINO_REQUIRE_ENDPOINT = true;
 static void wake_word_callback(void)
 {
     printf("[wake word]\n");
-    BSP_LED_On(LED_GREEN);
+    // BSP_LED_On(LED_GREEN);
 }
 
 static void inference_callback(pv_inference_t *inference)
 {
-    BSP_LED_Off(LED_GREEN);
+    // BSP_LED_Off(LED_GREEN);
     printf("{\n");
     printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
     if (inference->is_understood)
@@ -50,7 +49,7 @@ static void inference_callback(pv_inference_t *inference)
     printf("}\n\n");
     for (int32_t i = 0; i < 10; i++)
     {
-        BSP_LED_Toggle(LED_RED);
+        // BSP_LED_Toggle(LED_RED);
         HAL_Delay(30);
     }
     pv_inference_delete(inference);
