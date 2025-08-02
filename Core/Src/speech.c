@@ -25,136 +25,140 @@ static const bool RHINO_REQUIRE_ENDPOINT = true;
 
 static void wake_word_callback(void)
 {
-    printf("[wake word]\n");
-    // BSP_LED_On(LED_GREEN);
+  printf("[wake word]\n");
+  // BSP_LED_On(LED_GREEN);
 }
 
 static void inference_callback(pv_inference_t *inference)
 {
-    // BSP_LED_Off(LED_GREEN);
-    printf("{\n");
-    printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
-    if (inference->is_understood)
+  // BSP_LED_Off(LED_GREEN);
+  printf("{\n");
+  printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
+  if (inference->is_understood)
+  {
+    printf("    intent : '%s',\n", inference->intent);
+    if (inference->num_slots > 0)
     {
-        printf("    intent : '%s',\n", inference->intent);
-        if (inference->num_slots > 0)
-        {
-            printf("    slots : {\n");
-            for (int32_t i = 0; i < inference->num_slots; i++)
-            {
-                printf("        '%s' : '%s',\n", inference->slots[i], inference->values[i]);
-            }
-            printf("    }\n");
-        }
+      printf("    slots : {\n");
+      for (int32_t i = 0; i < inference->num_slots; i++)
+      {
+        printf("        '%s' : '%s',\n", inference->slots[i], inference->values[i]);
+      }
+      printf("    }\n");
     }
-    printf("}\n\n");
-    for (int32_t i = 0; i < 10; i++)
-    {
-        // BSP_LED_Toggle(LED_RED);
-        HAL_Delay(30);
-    }
-    pv_inference_delete(inference);
+  }
+  printf("}\n\n");
+  for (int32_t i = 0; i < 10; i++)
+  {
+    // BSP_LED_Toggle(LED_RED);
+    HAL_Delay(30);
+  }
+  pv_inference_delete(inference);
 }
 
 static void error_handler(void)
 {
-    printf("\r\n");
-    while (true)
-        ;
+  printf("\r\n");
+  while (true)
+    ;
 }
 
 void print_error_message(char **message_stack, int32_t message_stack_depth)
 {
-    for (int32_t i = 0; i < message_stack_depth; i++)
-    {
-        printf("[%ld] %s\n", i, message_stack[i]);
-    }
+  for (int32_t i = 0; i < message_stack_depth; i++)
+  {
+    printf("[%ld] %s\n", i, message_stack[i]);
+  }
 }
 
 uint8_t SPEECH_Init(void)
 {
-    // Board BSP
-    memcpy(_uuid, (uint8_t *)UID_BASE, UUID_SIZE);
-    printf("UUID: ");
-    for (int i = 0; i < UUID_SIZE; i++)
+  // Board BSP
+  memcpy(_uuid, (uint8_t *)UID_BASE, UUID_SIZE);
+  printf("UUID: ");
+  for (int i = 0; i < UUID_SIZE; i++)
+  {
+    printf("%.2x", _uuid[i]);
+  }
+
+  printf("AUDIO starting...\n");
+  AUDIO_Start();
+
+  char **message_stack = NULL;
+  int32_t message_stack_depth = 0;
+  pv_status_t error_status;
+
+  pv_status_t status = pv_picovoice_init(ACCESS_KEY, // access key
+                                         MEMORY_BUFFER_SIZE, // memory size
+                                         _memory_buffer, // memory buffer
+                                         sizeof(KEYWORD_ARRAY), // keyword model size
+                                         KEYWORD_ARRAY, // keyword model
+                                         PORCUPINE_SENSITIVITY, // wake word sensitivity
+                                         wake_word_callback, // wake word callback
+                                         sizeof(CONTEXT_ARRAY), // context model size
+                                         CONTEXT_ARRAY, // context model
+                                         RHINO_SENSITIVITY, // inference sensitivity
+                                         RHINO_ENDPOINT_DURATION_SEC, // endpoint duration
+                                         RHINO_REQUIRE_ENDPOINT, // require endpoint
+                                         inference_callback, // inference callback
+                                         &_handle // handle
+  );
+  if (status != PV_STATUS_SUCCESS)
+  {
+    printf("Picovoice init failed: %s\n", pv_status_to_string(status));
+
+    error_status = pv_get_error_stack(&message_stack, &message_stack_depth);
+    if (error_status != PV_STATUS_SUCCESS)
     {
-        printf("%.2x", _uuid[i]);
+      printf("Failed to get error stack: %s\n", pv_status_to_string(error_status));
+      error_handler();
     }
 
-    printf("AUDIO starting...\n");
-    AUDIO_Start();
+    print_error_message(message_stack, message_stack_depth);
+    pv_free_error_stack(message_stack);
+    error_handler();
+  }
 
-    char **message_stack = NULL;
-    int32_t message_stack_depth = 0;
-    pv_status_t error_status;
+  const char *rhino_context = NULL;
+  status = pv_picovoice_context_info(_handle, &rhino_context);
+  if (status != PV_STATUS_SUCCESS)
+  {
+    printf("retrieving context info failed with '%s'", pv_status_to_string(status));
+    error_handler();
+  }
+  printf("Rhino context info: %s\r\n", rhino_context);
 
-    pv_status_t status = pv_picovoice_init(ACCESS_KEY, // access key
-                                           MEMORY_BUFFER_SIZE, // memory size
-                                           _memory_buffer, // memory buffer
-                                           sizeof(KEYWORD_ARRAY), // keyword model size
-                                           KEYWORD_ARRAY, // keyword model
-                                           PORCUPINE_SENSITIVITY, // wake word sensitivity
-                                           wake_word_callback, // wake word callback
-                                           sizeof(CONTEXT_ARRAY), // context model size
-                                           CONTEXT_ARRAY, // context model
-                                           RHINO_SENSITIVITY, // inference sensitivity
-                                           RHINO_ENDPOINT_DURATION_SEC, // endpoint duration
-                                           RHINO_REQUIRE_ENDPOINT, // require endpoint
-                                           inference_callback, // inference callback
-                                           &_handle // handle
-    );
-    if (status != PV_STATUS_SUCCESS)
-    {
-        printf("Picovoice init failed: %s\n", pv_status_to_string(status));
+  volatile int32_t frame_length = pv_picovoice_frame_length();
 
-        error_status = pv_get_error_stack(&message_stack, &message_stack_depth);
-        if (error_status != PV_STATUS_SUCCESS)
-        {
-            printf("Failed to get error stack: %s\n", pv_status_to_string(error_status));
-            error_handler();
-        }
+  volatile int32_t sample_rate = pv_sample_rate();
 
-        print_error_message(message_stack, message_stack_depth);
-        pv_free_error_stack(message_stack);
-        error_handler();
-    }
-
-    const char *rhino_context = NULL;
-    status = pv_picovoice_context_info(_handle, &rhino_context);
-    if (status != PV_STATUS_SUCCESS)
-    {
-        printf("retrieving context info failed with '%s'", pv_status_to_string(status));
-        error_handler();
-    }
-    printf("Rhino context info: %s\r\n", rhino_context);
-
-    volatile int32_t frame_length = pv_picovoice_frame_length();
-
-    volatile int32_t sample_rate = pv_sample_rate();
-
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
 
 // to be called in while loop
 uint8_t SPEECH_Process(void)
 {
-    const int16_t *buffer = AUDIO_GetBuffer();
+  const int16_t *buffer = AUDIO_GetBuffer();
 
-    if (buffer)
+  if (buffer)
+  {
+    uint32_t start = HAL_GetTick();
+
+#ifdef AUDIO_OVER_USART
+    HAL_UART_Transmit(&huart1, (uint8_t *)buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
+#else
+
+    const pv_status_t status = pv_picovoice_process(_handle, buffer);
+    uint32_t end = HAL_GetTick();
+    volatile uint32_t elapsed = end - start;
+    printf("pv_picovoice_process took %lu ms\n", (end - start));
+    if (status != PV_STATUS_SUCCESS)
     {
-        uint32_t start = HAL_GetTick();
-        // HAL_UART_Transmit(&huart1, (uint8_t *)buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
-
-        const pv_status_t status = pv_picovoice_process(_handle, buffer);
-        uint32_t end = HAL_GetTick();
-        volatile uint32_t elapsed = end - start;
-        printf("pv_picovoice_process took %lu ms\n", (end - start));
-        if (status != PV_STATUS_SUCCESS)
-        {
-            printf("Picovoice process failed: %s\n", pv_status_to_string(status));
-            error_handler();
-        }
+      printf("Picovoice process failed: %s\n", pv_status_to_string(status));
+      error_handler();
     }
+#endif
+  }
 
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
