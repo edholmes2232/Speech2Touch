@@ -36,13 +36,26 @@ int16_t *AUDIO_GetBuffer(void)
     return _ping_pong_buffer[read_index];
 }
 
+// A helper macro for clamping
+#define CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
+
 static void processData(const int32_t *dma_src, int16_t *dest)
 {
     for (uint32_t i = 0; i < PICOVOICE_FRAME_SIZE; i++)
     {
-        // Convert 32-bit audio data to 16-bit
-        dest[i] = (int16_t)(dma_src[i] >> 16); // Assuming the data is in the upper half of the 32-bit word
-        // Pretty sure this needs changing!
+        // 1. Get the raw 32-bit sample from the DMA buffer
+        int32_t sample = dma_src[i];
+
+        // 2. Apply a gain factor. Start with 4.
+        // (This is a 12dB gain. Use 2 for 6dB, 8 for 18dB, etc.)
+        sample = sample * 4;
+
+        // 3. IMPORTANT: Clamp the value to prevent overflow distortion.
+        // The raw 24-bit data is in a 32-bit container, so we clamp to the 32-bit min/max.
+        sample = CLAMP(sample, INT32_MIN, INT32_MAX);
+
+        // 4. Now, shift the amplified and clamped value down to 16-bit
+        dest[i] = (int16_t)(sample >> 16);
     }
 }
 
