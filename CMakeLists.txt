@@ -49,6 +49,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     ${CMAKE_SOURCE_DIR}/Core/Src/audio.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/led.c
     ${CMAKE_SOURCE_DIR}/Core/Src/speech.c
 )
 
