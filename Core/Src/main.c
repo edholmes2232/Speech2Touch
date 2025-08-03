@@ -18,15 +18,17 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "dma.h"
+#include "gpio.h"
 #include "memorymap.h"
 #include "sai.h"
 #include "usart.h"
 #include "usb_device.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "led.h"
 #include "speech.h"
 
 /* USER CODE END Includes */
@@ -124,9 +126,9 @@ int _write(int le, char *ptr, int len)
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+ * @brief  The application entry point.
+ * @retval int
+ */
 int main(void)
 {
 
@@ -187,45 +189,43 @@ int main(void)
 
   while (1)
   {
-    /*
-      // Wait for button press, then send a touch report
-      if (BSP_PB_GetState(BUTTON_SW1) == GPIO_PIN_RESET)
-      {
-          // Light up LED
-          BSP_LED_On(LED_BLUE);
-          HAL_Delay(10); // Debounce delay
-          BSP_LED_Off(LED_BLUE);
+    // Wait for button press, then send a touch report
+    if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
+    {
+      // Light up LED
+      LED_SetState(LED_2, 1);
+      HAL_Delay(10); // Debounce delay
+      LED_SetState(LED_2, 0);
 
-          static uint8_t counter = 0;
-          counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
+      static uint8_t counter = 0;
+      counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
 
-          // Send the touch report
-          // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report,
-      sizeof(touch_screen_report)); uint8_t x_coord_percentage = counter; uint8_t y_coord_percentage = counter;
+      // Send the touch report
+      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report, sizeof(touch_screen_report));
+      uint8_t x_coord_percentage = counter;
+      uint8_t y_coord_percentage = counter;
 
-          printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
+      printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
 
-          uint8_t buff[5];
-          // Report ID
-          buff[0] = 0x03;
-          // LSB of X coordinate percentage * 100 (0... 10000)
-          buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
-          // MSB of X coordinate percentage * 100 (0... 10000)
-          buff[2] = (x_coord_percentage * 100) >> 8; //
-          // LSB of Y coordinate percentage * 100 (0... 10000)
-          buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
-          // MSB of Y coordinate percentage * 100 (0... 10000)
-          buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
-          USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
+      uint8_t buff[5];
+      // Report ID
+      buff[0] = 0x01;
+      // LSB of X coordinate percentage * 100 (0... 10000)
+      buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
+      // MSB of X coordinate percentage * 100 (0... 10000)
+      buff[2] = (x_coord_percentage * 100) >> 8; //
+      // LSB of Y coordinate percentage * 100 (0... 10000)
+      buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
+      // MSB of Y coordinate percentage * 100 (0... 10000)
+      buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
+      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
 
-          HAL_Delay(100); // Debounce delay
-          buff[0] = 0x02;
-          USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
-          HAL_Delay(1000); // Debounce delay
-          // Turn off LED
-          // BSP_LED_Off(LED_BLUE);
-      }
-          */
+      HAL_Delay(100); // Debounce delay
+      buff[0] = 0x00;
+      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
+      HAL_Delay(1000); // Debounce delay
+      // Turn off LED
+    }
 
     SPEECH_Process();
 
@@ -237,23 +237,22 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
+ * @brief System Clock Configuration
+ * @retval None
+ */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-  */
+   */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
-                              |RCC_OSCILLATORTYPE_MSI;
+   * in the RCC_OscInitTypeDef structure.
+   */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48 | RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
@@ -273,10 +272,9 @@ void SystemClock_Config(void)
   }
 
   /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4|RCC_CLOCKTYPE_HCLK2
-                              |RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+   */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4 | RCC_CLOCKTYPE_HCLK2 | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
@@ -291,15 +289,15 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief Peripherals Common Clock Configuration
-  * @retval None
-  */
+ * @brief Peripherals Common Clock Configuration
+ * @retval None
+ */
 void PeriphCommonClock_Config(void)
 {
   RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Initializes the peripherals clock
-  */
+   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS;
   PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSI;
   PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE1;
@@ -318,9 +316,9 @@ void PeriphCommonClock_Config(void)
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -332,14 +330,14 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
