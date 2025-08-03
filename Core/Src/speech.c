@@ -2,6 +2,7 @@
 #include "led.h"
 #include "pv_params.h"
 #include "pv_picovoice.h"
+#include "pv_porcupine_params.h"
 #include "stm32wbxx_hal.h"
 #include "usart.h"
 
