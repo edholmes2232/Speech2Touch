@@ -51,7 +51,7 @@ void MX_SAI1_Init(void)
   hsai_BlockA1.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
   hsai_BlockA1.Init.MonoStereoMode = SAI_MONOMODE;
   hsai_BlockA1.Init.CompandingMode = SAI_NOCOMPANDING;
-  if (HAL_SAI_InitProtocol(&hsai_BlockA1, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_24BIT, 2) != HAL_OK)
+  if (HAL_SAI_InitProtocol(&hsai_BlockA1, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_32BIT, 2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -75,7 +75,7 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* saiHandle)
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
-    PeriphClkInitStruct.PLLSAI1.PLLN = 51;
+    PeriphClkInitStruct.PLLSAI1.PLLN = 16;
     PeriphClkInitStruct.PLLSAI1.PLLP = RCC_PLLP_DIV25;
     PeriphClkInitStruct.PLLSAI1.PLLQ = RCC_PLLQ_DIV2;
     PeriphClkInitStruct.PLLSAI1.PLLR = RCC_PLLR_DIV2;
