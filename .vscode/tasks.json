@@ -4,7 +4,10 @@
         "options": {
             "shell": {
                 "executable": "cmd.exe",
-                "args": ["/d", "/c"]
+                "args": [
+                    "/d",
+                    "/c"
+                ]
             }
         }
     },
@@ -18,10 +21,9 @@
                 "port=swd",
                 "--download",
                 "${command:cmake.launchTargetPath}",
-                // Let CMake extension decide executable: "${command:cmake.launchTargetPath}",
-                "-hardRst", // Hardware reset - if rst pin is connected
-                "-rst", // Software reset (backup)
-                "--start" // Start execution
+                "-hardRst",
+                "-rst",
+                "--start"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -33,30 +35,50 @@
             "dependsOrder": "sequence",
             "dependsOn": [
                 "CMake: clean rebuild",
-                "CubeProg: Flash project (SWD)",
+                "CubeProg: Flash project (SWD)"
             ]
-        },
-                {
-            "type": "cmake",
-            "label": "CMake: clean rebuild",
-            "command": "cleanRebuild",
-            "targets": [
-                "all"
-            ],
-            "preset": "${command:cmake.activeBuildPresetName}",
-            "group": "build",
-            "problemMatcher": [],
-            "detail": "CMake template clean rebuild task"
         },
         {
             "type": "shell",
             "label": "CubeProg: List all available communication interfaces",
             "command": "STM32_Programmer_CLI",
-            "args": ["--list"],
+            "args": [
+                "--list"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
-        }
+        },
+        {
+            "label": "CMake Build Application",
+            "type": "shell",
+            "command": " cmake --build ${workspaceFolder}/build/Debug --target all -j 10 --",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "CMake Configure",
+            "type": "shell",
+            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake -S ${workspaceFolder} -B ${workspaceFolder}/build/Debug -G Ninja",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
     ]
 }
