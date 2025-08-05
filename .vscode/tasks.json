@@ -1,84 +1,99 @@
 {
-    "version": "2.0.0",
-    "windows": {
-        "options": {
-            "shell": {
-                "executable": "cmd.exe",
-                "args": [
-                    "/d",
-                    "/c"
-                ]
-            }
-        }
+  "version": "2.0.0",
+  "windows": {
+    "options": {
+      "shell": {
+        "executable": "cmd.exe",
+        "args": [
+          "/d",
+          "/c"
+        ]
+      }
+    }
+  },
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "CubeProg: Flash project (SWD)",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--connect",
+        "port=swd",
+        "--download",
+        "${command:cmake.launchTargetPath}",
+        "-hardRst",
+        "-rst",
+        "--start"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     },
-    "tasks": [
-        {
-            "type": "shell",
-            "label": "CubeProg: Flash project (SWD)",
-            "command": "STM32_Programmer_CLI",
-            "args": [
-                "--connect",
-                "port=swd",
-                "--download",
-                "${command:cmake.launchTargetPath}",
-                "-hardRst",
-                "-rst",
-                "--start"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build + Flash",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "CMake: clean rebuild",
-                "CubeProg: Flash project (SWD)"
-            ]
-        },
-        {
-            "type": "shell",
-            "label": "CubeProg: List all available communication interfaces",
-            "command": "STM32_Programmer_CLI",
-            "args": [
-                "--list"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "CMake Build Application",
-            "type": "shell",
-            "command": " cmake --build ${workspaceFolder}/build/Debug --target all -j 10 --",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
-        },
-        {
-            "label": "CMake Configure",
-            "type": "shell",
-            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake -S ${workspaceFolder} -B ${workspaceFolder}/build/Debug -G Ninja",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
-        },
-    ]
+    {
+      "label": "Build + Flash",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: clean rebuild",
+        "CubeProg: Flash project (SWD)"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "CubeProg: List all available communication interfaces",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--list"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake Build Application",
+      "type": "shell",
+      "command": " cmake --build ${workspaceFolder}/build/Debug --target all -j 10 --",
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Clean Application",
+      "type": "shell",
+      "command": " cmake --build ${workspaceFolder}/build/Debug --target clean --",
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure",
+      "type": "shell",
+      "command": "cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake -S ${workspaceFolder} -B ${workspaceFolder}/build/Debug -G Ninja",
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+  ]
 }
