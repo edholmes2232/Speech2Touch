@@ -35,39 +35,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct
-{
-  uint8_t reportId; // Report ID = 0x03 (3)
-                    // Collection: CA:TouchScreen CP:Finger
-  uint8_t DIG_TouchScreenFingerTipSwitch : 1; // Usage 0x000D0042: Tip Switch, Value = 0 to 1
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t DIG_TouchScreenFingerInRange : 1; // Usage 0x000D0032: In Range, Value = 0 to 1
-  uint8_t DIG_TouchScreenFingerConfidence : 1; // Usage 0x000D0047: Confidence, Value = 0 to 1
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint8_t : 1; // Pad
-  uint16_t GD_TouchScreenFingerX; // Usage 0x00010030: X, Value = 0 to 32767
-  uint16_t GD_TouchScreenFingerY; // Usage 0x00010031: Y, Value = 0 to 32767
-  uint16_t DIG_TouchScreenFingerWidth; // Usage 0x000D0048: Width, Value = 0 to 32767
-                                       // Usage 0x000D0049 Height, Value = 0 to 32767 <-- Ignored: REPORT_COUNT (1) is
-                                       // too small
-  uint16_t pad_8; // Pad
-  uint16_t DIG_TouchScreenFingerContactIdentifier[2]; // Usage 0x000D0051: Contact Identifier, Value = 0 to 32767
-} TouchScreenReport_t;
-
-// typedef struct
-// {
-//     uint8_t reportId; // bit 0 = finger up/down, bit 1 = finger in range
-//     uint8_t
 
 /* USER CODE END PTD */
 
@@ -84,9 +51,6 @@ typedef struct
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static volatile uint8_t _usb_connected = 0;
-
-TouchScreenReport_t touch_screen_report;
 extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END PV */
 
@@ -95,19 +59,6 @@ void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
 extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
-
-void USB_ConnectionCallback(uint8_t state)
-{
-  _usb_connected = state;
-  // if (state)
-  // {
-  //     BSP_LED_On(LED_GREEN);
-  // }
-  // else
-  // {
-  //     BSP_LED_Off(LED_GREEN);
-  // }
-}
 
 #ifndef AUDIO_OVER_USART
 int _write(int le, char *ptr, int len)
@@ -122,6 +73,16 @@ int _write(int le, char *ptr, int len)
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+#pragma pack(1)
+typedef struct
+{
+  uint8_t report_id;
+  uint8_t state; // Bit 0: Tip Switch
+  uint16_t x;
+  uint16_t y;
+} TouchScreenReport_t;
+#pragma pack()
 
 /* USER CODE END 0 */
 
@@ -170,22 +131,8 @@ int main(void)
 
   SPEECH_Init();
 
-  printf("Waiting for USB connection...\r\n");
-  // while (_usb_connected == 0)
-  {
-    /* Wait for USB connection */
-    HAL_Delay(100);
-  }
-  printf("USB connected!\n");
-
-  touch_screen_report.reportId = 0x03;
-  touch_screen_report.DIG_TouchScreenFingerTipSwitch = 1;
-  touch_screen_report.DIG_TouchScreenFingerInRange = 1;
-  touch_screen_report.DIG_TouchScreenFingerConfidence = 1;
-  touch_screen_report.DIG_TouchScreenFingerContactIdentifier[0] = 1;
-  touch_screen_report.GD_TouchScreenFingerX = 100;
-  touch_screen_report.GD_TouchScreenFingerY = 100;
-  // touch_screen_report.DIG_TouchScreenContactCount = 1;
+  TouchScreenReport_t touch_report;
+  touch_report.report_id = 0x01; // Matches the descriptor
 
   while (1)
   {
@@ -195,36 +142,32 @@ int main(void)
       // Light up LED
       LED_SetState(LED_2, 1);
       HAL_Delay(10); // Debounce delay
-      LED_SetState(LED_2, 0);
 
       static uint8_t counter = 0;
-      counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
+      counter = (counter + 10) % 100;
 
-      // Send the touch report
-      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report, sizeof(touch_screen_report));
-      uint8_t x_coord_percentage = counter;
-      uint8_t y_coord_percentage = counter;
+      // Map the 0-99 counter to our 0-10000 coordinate space
+      touch_report.x = counter * 100;
+      touch_report.y = counter * 100;
 
-      printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
+      printf("Button pressed, sending tap at: X=%u, Y=%u\n", touch_report.x, touch_report.y);
 
-      uint8_t buff[5];
-      // Report ID
-      buff[0] = 0x01;
-      // LSB of X coordinate percentage * 100 (0... 10000)
-      buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
-      // MSB of X coordinate percentage * 100 (0... 10000)
-      buff[2] = (x_coord_percentage * 100) >> 8; //
-      // LSB of Y coordinate percentage * 100 (0... 10000)
-      buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
-      // MSB of Y coordinate percentage * 100 (0... 10000)
-      buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
-      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
+      // --- Send "Touch Down" Report ---
+      touch_report.state = 0x01; // Set Tip Switch bit to 1
+      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
 
-      HAL_Delay(100); // Debounce delay
-      buff[0] = 0x00;
-      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
-      HAL_Delay(1000); // Debounce delay
-      // Turn off LED
+      HAL_Delay(30); // Host needs a moment to process the "down" state before the "up"
+
+      // --- Send "Touch Up" Report ---
+      touch_report.state = 0x00; // Set Tip Switch bit to 0
+      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
+
+      // Wait for the button to be physically released before allowing another press
+      while (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
+        ;
+
+      LED_SetState(LED_2, 0);
+      HAL_Delay(50); // Debounce the release
     }
 
     SPEECH_Process();
