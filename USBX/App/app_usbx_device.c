@@ -27,6 +27,8 @@
 #include "touch_targets.h"
 #include "usb.h"
 #include "ux_dcd_stm32.h"
+#include "ux_device_class_hid.h"
+#include "ux_utility.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -242,21 +244,13 @@ static VOID app_ux_device_thread_entry(ULONG thread_input)
 #pragma pack(1)
   typedef struct
   {
-    uint8_t report_id;
     uint8_t state; // Bit 0: Tip Switch
     uint16_t x;
     uint16_t y;
   } TouchScreenReport_t;
 #pragma pack()
 
-  // Create hid event
-  UX_SLAVE_CLASS_HID_EVENT touch_event;
-  touch_event.ux_device_class_hid_event_report_id = UX_FALSE; // Not using report ID
-  touch_event.ux_device_class_hid_event_length = sizeof(TouchScreenReport_t);
-
-  TouchScreenReport_t *touch_report = (TouchScreenReport_t *)touch_event.ux_device_class_hid_event_buffer;
-  touch_report->report_id = 0x01;
-  // touch_report.report_id = 0x01; // Matches the descriptor
+  TouchScreenReport_t touch_report;
 
   // Wait for USB to be activated
   for (;;)
@@ -274,13 +268,30 @@ static VOID app_ux_device_thread_entry(ULONG thread_input)
       }
       else
       {
-        // Create touch report
-        touch_report->x = 5000;
-        touch_report->y = 5000;
-        // Button pressed
-        touch_report->state = 0x01; // Set Tip Switch bit to 1
+        // Match descriptor
+        // Update touch_report
+        touch_report.x = 5000;
+        touch_report.y = 5000;
 
-        status = _ux_device_class_hid_event_set(_hid_instance, (UX_SLAVE_CLASS_HID_EVENT *)&touch_event);
+        // Create touch events
+        UX_SLAVE_CLASS_HID_EVENT pressed_touch_event;
+        ux_utility_memory_set(&pressed_touch_event, 0, sizeof(pressed_touch_event));
+        // Set report id ourselves
+        pressed_touch_event.ux_device_class_hid_event_report_id = 0x01;
+        // Always this length
+        pressed_touch_event.ux_device_class_hid_event_length = sizeof(TouchScreenReport_t);
+        // Button pressed
+        touch_report.state = 0x01; // Set Tip Switch bit to 1
+        // Copy our event data into hid event
+        ux_utility_memory_copy(
+            pressed_touch_event.ux_device_class_hid_event_buffer, &touch_report, sizeof(TouchScreenReport_t));
+
+        // Make a copy for release event
+        UX_SLAVE_CLASS_HID_EVENT released_touch_event = pressed_touch_event;
+        // Button released
+        ((TouchScreenReport_t *)released_touch_event.ux_device_class_hid_event_buffer)->state = 0x00;
+
+        status = _ux_device_class_hid_event_set(_hid_instance, &pressed_touch_event);
         if (status != UX_SUCCESS)
         {
           printf("Failed to send USB HID report\n");
@@ -289,10 +300,7 @@ static VOID app_ux_device_thread_entry(ULONG thread_input)
         // Wait for host to process the "down" state before sending "up"
         tx_thread_sleep(30);
 
-        // Button released
-        touch_report->state = 0x00; // Set Tip Switch bit to 0
-
-        status = _ux_device_class_hid_event_set(_hid_instance, (UX_SLAVE_CLASS_HID_EVENT *)&touch_event);
+        status = _ux_device_class_hid_event_set(_hid_instance, &released_touch_event);
         if (status != UX_SUCCESS)
         {
           printf("Failed to send USB HID report\n");
