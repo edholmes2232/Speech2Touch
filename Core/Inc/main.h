@@ -66,6 +66,7 @@ void Error_Handler(void);
 #define RCC_OSC32_OUT_GPIO_Port GPIOC
 #define SW1_Pin GPIO_PIN_4
 #define SW1_GPIO_Port GPIOC
+#define SW1_EXTI_IRQn EXTI4_IRQn
 #define LD2_Pin GPIO_PIN_0
 #define LD2_GPIO_Port GPIOB
 #define LD3_Pin GPIO_PIN_1
@@ -80,8 +81,10 @@ void Error_Handler(void);
 #define JTCK_GPIO_Port GPIOA
 #define SW2_Pin GPIO_PIN_0
 #define SW2_GPIO_Port GPIOD
+#define SW2_EXTI_IRQn EXTI0_IRQn
 #define SW3_Pin GPIO_PIN_1
 #define SW3_GPIO_Port GPIOD
+#define SW3_EXTI_IRQn EXTI1_IRQn
 #define JTDO_Pin GPIO_PIN_3
 #define JTDO_GPIO_Port GPIOB
 #define LD1_Pin GPIO_PIN_5

@@ -41,7 +41,7 @@ typedef struct
   uint8_t y;
 } TOUCH_TARGET_T;
 
-TOUCH_TARGET_T touch_targets[] = {
+static TOUCH_TARGET_T touch_targets[] = {
     // clang-format off
     /* TARGET_ESPRESSO */           { 0, 0, 0 }, // page 0 [0,0]
     /* TARGET_DOUBLE_ESPRESSO */    { 0, 1, 0 }, // page 0 [1,0]

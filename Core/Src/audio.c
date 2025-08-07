@@ -21,19 +21,26 @@ static int32_t last_read_index = -1;
 
 void AUDIO_Start(void)
 {
-    printf("AUDIO_Start\n");
-    HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
+  printf("AUDIO_Start\n");
+  // Enable DWT cycle counter for timing if not already enabled
+  if (!(DWT->CTRL & DWT_CTRL_CYCCNTENA_Msk))
+  {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  }
+  HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
 }
 
 int16_t *AUDIO_GetBuffer(void)
 {
-    if ((read_index == -1) || (last_read_index == read_index))
-    {
-        // No new data available
-        return NULL;
-    }
-    last_read_index = read_index;
-    return _ping_pong_buffer[read_index];
+  if ((read_index == -1) || (last_read_index == read_index))
+  {
+    // No new data available
+    return NULL;
+  }
+  last_read_index = read_index;
+  return _ping_pong_buffer[read_index];
 }
 
 // A helper macro for clamping
@@ -41,38 +48,43 @@ int16_t *AUDIO_GetBuffer(void)
 
 static void processData(const int32_t *dma_src, int16_t *dest)
 {
-    for (uint32_t i = 0; i < PICOVOICE_FRAME_SIZE; i++)
-    {
-        // 1. Get the raw 32-bit sample from the DMA buffer
-        int32_t sample = dma_src[i];
+  uint32_t start = DWT->CYCCNT;
+  for (uint32_t i = 0; i < PICOVOICE_FRAME_SIZE; i++)
+  {
+    // 1. Get the raw 32-bit sample from the DMA buffer
+    int32_t sample = dma_src[i];
 
-        // 2. Apply a gain factor. Start with 4.
-        // (This is a 12dB gain. Use 2 for 6dB, 8 for 18dB, etc.)
-        sample = sample * 4;
+    // 2. Apply a gain factor. Start with 4.
+    // (This is a 12dB gain. Use 2 for 6dB, 8 for 18dB, etc.)
+    sample = sample * 4;
 
-        // 3. IMPORTANT: Clamp the value to prevent overflow distortion.
-        // The raw 24-bit data is in a 32-bit container, so we clamp to the 32-bit min/max.
-        sample = CLAMP(sample, INT32_MIN, INT32_MAX);
+    // 3. IMPORTANT: Clamp the value to prevent overflow distortion.
+    // The raw 24-bit data is in a 32-bit container, so we clamp to the 32-bit min/max.
+    sample = CLAMP(sample, INT32_MIN, INT32_MAX);
 
-        // 4. Now, shift the amplified and clamped value down to 16-bit
-        dest[i] = (int16_t)(sample >> 16);
-    }
+    // 4. Now, shift the amplified and clamped value down to 16-bit
+    dest[i] = (int16_t)(sample >> 16);
+  }
+  uint32_t end = DWT->CYCCNT;
+  uint32_t cycles = end - start;
+  uint32_t us = cycles / (SystemCoreClock / 1000000);
+  printf("processData took %lu us\n", us);
 }
 
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
-    processData(&_dma_buffer[0], _ping_pong_buffer[write_index]);
+  processData(&_dma_buffer[0], _ping_pong_buffer[write_index]);
 
-    read_index = write_index;
+  read_index = write_index;
 
-    write_index ^= 1; // Toggle between 0 and 1
+  write_index ^= 1; // Toggle between 0 and 1
 }
 
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hsai)
 {
-    processData(&_dma_buffer[PICOVOICE_FRAME_SIZE], _ping_pong_buffer[write_index]);
+  processData(&_dma_buffer[PICOVOICE_FRAME_SIZE], _ping_pong_buffer[write_index]);
 
-    read_index = write_index;
+  read_index = write_index;
 
-    write_index ^= 1; // Toggle between 0 and 1
+  write_index ^= 1; // Toggle between 0 and 1
 }
