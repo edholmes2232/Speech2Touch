@@ -17,19 +17,21 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "app_threadx.h"
 #include "main.h"
-
 #include "dma.h"
-#include "gpio.h"
 #include "memorymap.h"
 #include "sai.h"
 #include "usart.h"
-#include "usb_device.h"
+#include "usb.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "led.h"
 #include "speech.h"
+#include "touch_targets.h"
+#include "ux_api.h"
 
 /* USER CODE END Includes */
 
@@ -51,14 +53,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
-extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
+// extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
 
 #ifndef AUDIO_OVER_USART
 int _write(int le, char *ptr, int len)
@@ -74,6 +75,26 @@ int _write(int le, char *ptr, int len)
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+extern TX_QUEUE _usb_hid_msg_queue;
+
+// Button callback
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  printf("Button pressed: %d\n", GPIO_Pin);
+  if (GPIO_Pin == SW1_Pin)
+  {
+    LED_SetState(LED_2, 1);
+
+    TARGET_T target_event = TARGET_ESPRESSO;
+
+    UINT ret = tx_queue_send(&_usb_hid_msg_queue, &target_event, TX_NO_WAIT);
+    if (ret != UX_SUCCESS)
+    {
+      printf("Failed to send target in queue: %d\n", ret);
+    }
+  }
+}
+
 #pragma pack(1)
 typedef struct
 {
@@ -87,14 +108,13 @@ typedef struct
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -120,11 +140,17 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SAI1_Init();
-  MX_USB_Device_Init();
   MX_USART1_UART_Init();
+  MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
 
+  // Setup SW1 for interrupt
+  printf("Startup\n");
   /* USER CODE END 2 */
+
+  MX_ThreadX_Init();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -136,6 +162,7 @@ int main(void)
 
   while (1)
   {
+    /*
     // Wait for button press, then send a touch report
     if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
     {
@@ -154,13 +181,13 @@ int main(void)
 
       // --- Send "Touch Down" Report ---
       touch_report.state = 0x01; // Set Tip Switch bit to 1
-      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
+      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
 
       HAL_Delay(30); // Host needs a moment to process the "down" state before the "up"
 
       // --- Send "Touch Up" Report ---
       touch_report.state = 0x00; // Set Tip Switch bit to 0
-      USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
+      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
 
       // Wait for the button to be physically released before allowing another press
       while (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
@@ -169,7 +196,7 @@ int main(void)
       LED_SetState(LED_2, 0);
       HAL_Delay(50); // Debounce the release
     }
-
+*/
     SPEECH_Process();
 
     /* USER CODE END WHILE */
@@ -180,22 +207,23 @@ int main(void)
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-   */
+  */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48 | RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_MSI;
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
+                              |RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
@@ -215,9 +243,10 @@ void SystemClock_Config(void)
   }
 
   /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4 | RCC_CLOCKTYPE_HCLK2 | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4|RCC_CLOCKTYPE_HCLK2
+                              |RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
@@ -232,15 +261,15 @@ void SystemClock_Config(void)
 }
 
 /**
- * @brief Peripherals Common Clock Configuration
- * @retval None
- */
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
 void PeriphCommonClock_Config(void)
 {
   RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Initializes the peripherals clock
-   */
+  */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS;
   PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSI;
   PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE1;
@@ -259,9 +288,31 @@ void PeriphCommonClock_Config(void)
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM17 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM17)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -273,14 +324,14 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
