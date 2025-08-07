@@ -46,7 +46,7 @@ extern "C" {
 #define USBD_HID_CUSTOM_ACTIVATED                      1U
 
 #define USBD_CONFIG_MAXPOWER                           250U
-#define USBD_COMPOSITE_USE_IAD                         1U
+#define USBD_COMPOSITE_USE_IAD                         0U
 #define USBD_DEVICE_FRAMEWORK_BUILDER_ENABLED          1U
 
 #define USBD_FRAMEWORK_MAX_DESC_SZ                     200U
