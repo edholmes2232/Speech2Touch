@@ -1,5 +1,7 @@
 #pragma once
 
+#include "touch_targets.h"
+
 #include <QMainWindow>
 #include <QParallelAnimationGroup>
 
@@ -21,6 +23,7 @@ class MainWindow : public QMainWindow
   private slots:
   void nextPage();
   void previousPage();
+  void onButtonReleased(TARGET_T button);
 
   private:
   Ui::MainWindow *ui;

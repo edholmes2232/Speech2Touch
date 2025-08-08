@@ -26,10 +26,10 @@ void MainWindow::setupButtons()
   // Set button names, starting at 0
   for (int i = 0; i < buttons.size(); ++i)
   {
-    buttons[i]->setObjectName(QString::number(i));
-    buttons[i]->setText(QString::number(i));
-    // buttons[i]->setText(touch_targets[i].name);
-    // qDebug() << "Button" << i << "set to" << touch_targets[i].name;
+    // buttons[i]->setObjectName(QString::number(i));
+    // buttons[i]->setText(QString::number(i));
+    buttons[i]->setText(touch_targets[i].name);
+    connect(buttons[i], &QPushButton::released, this, [this, i]() { onButtonReleased(static_cast<TARGET_T>(i)); });
   }
 }
 
@@ -161,4 +161,12 @@ void MainWindow::switchPages(int index, int direction)
 
   animationGroup->start(QAbstractAnimation::DeleteWhenStopped);
   qDebug() << "Page switch animation started";
+}
+
+void MainWindow::onButtonReleased(TARGET_T button)
+{
+  qDebug() << "Button released:" << touch_targets[button].name;
+
+  // Handle button release logic here
+  // For example, you could switch pages or perform an action based on the button
 }
