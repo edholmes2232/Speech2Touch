@@ -1,7 +1,10 @@
 # CMake configuration for Google Test
 cmake_minimum_required(VERSION 3.10)
 
-project(GoogleTestDemo)
+project(TestFullLoop)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Enable testing
 enable_testing()
@@ -18,14 +21,15 @@ FetchContent_MakeAvailable(googletest)
 
 # Add test source files
 add_executable(
-  basic_gtest
-  test_basic.cpp
+  test_full_loop
+  test_full_loop.cpp
 )
 
 target_link_libraries(
-  basic_gtest
-  gtest_main
+  test_full_loop
+  GTest::gtest_main
+  # harness_gui_lib
 )
 
 include(GoogleTest)
-gtest_discover_tests(basic_gtest)
+gtest_discover_tests(test_full_loop)
