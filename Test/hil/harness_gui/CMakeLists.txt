@@ -21,11 +21,15 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/../../../Core/Src/touch_targets.
 target_sources(harness_gui_lib PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}/mainwindow.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/mainwindow.h
-                ${CMAKE_SOURCE_DIR}/../../../Core/Src/touch_targets.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../../Core/Src/touch_targets.c
                 ${UI_FILE})
 
 target_include_directories(harness_gui_lib PRIVATE
-    ${CMAKE_SOURCE_DIR}/../../../Core/Inc
+)
+
+target_include_directories(harness_gui_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 

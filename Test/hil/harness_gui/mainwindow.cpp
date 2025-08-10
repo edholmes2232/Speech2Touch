@@ -167,6 +167,14 @@ void MainWindow::onButtonReleased(TARGET_T button)
 {
   qDebug() << "Button released:" << touch_targets[button].name;
 
-  // Handle button release logic here
-  // For example, you could switch pages or perform an action based on the button
+  if (_button_released_promise)
+  {
+    _button_released_promise->set_value(button);
+    _button_released_promise = nullptr;
+  }
+}
+
+void MainWindow::setButtonReleasedPromise(std::promise<TARGET_T> *promise)
+{
+  _button_released_promise = promise;
 }
