@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable testing
 enable_testing()
 
+# Add the harness GUI library subdirectory
+add_subdirectory(../harness_gui harness_gui_build)
+
 # Download and unpack googletest at configure time
 include(FetchContent)
 FetchContent_Declare(
@@ -25,10 +28,14 @@ add_executable(
   test_full_loop.cpp
 )
 
+# target_include_directories(test_full_loop PRIVATE
+#     ${CMAKE_SOURCE_DIR}/../../../Core/Inc
+# )
+
 target_link_libraries(
   test_full_loop
   GTest::gtest_main
-  # harness_gui_lib
+  harness_gui_lib
 )
 
 include(GoogleTest)

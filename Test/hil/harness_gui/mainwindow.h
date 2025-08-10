@@ -4,6 +4,7 @@
 
 #include <QMainWindow>
 #include <QParallelAnimationGroup>
+#include <future>
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -19,6 +20,9 @@ class MainWindow : public QMainWindow
   public:
   explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
+
+  // For testing: set a promise to be fulfilled on button release
+  void setButtonReleasedPromise(std::promise<TARGET_T> *promise);
 
   private slots:
   void nextPage();
@@ -39,4 +43,6 @@ class MainWindow : public QMainWindow
   const int _switch_duration_ms = 500;
 
   void setupButtons();
+
+  std::promise<TARGET_T> *_button_released_promise = nullptr;
 };
