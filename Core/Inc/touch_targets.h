@@ -51,7 +51,8 @@ typedef struct
   char name[24];
 } TOUCH_TARGET_T;
 
-extern const TOUCH_TARGET_T touch_targets[];
+// Arranged Top to Bottom, Left to Right
+extern const TOUCH_TARGET_T touch_targets[TARGET_COUNT];
 
 #ifdef __cplusplus
 }

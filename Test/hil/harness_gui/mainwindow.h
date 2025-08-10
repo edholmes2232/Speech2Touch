@@ -28,6 +28,7 @@ class MainWindow : public QMainWindow
   void nextPage();
   void previousPage();
   void onButtonReleased(TARGET_T button);
+  void updateWindowTitle();
 
   private:
   Ui::MainWindow *ui;

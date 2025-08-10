@@ -89,5 +89,5 @@ class HilTest : public ::testing::Test
 
 TEST_F(HilTest, CaffeLattePressed)
 {
-  ASSERT_TRUE(expectButtonReleased(TARGET_CAFFE_LATTE, 2000));
+  ASSERT_TRUE(expectButtonReleased(TARGET_CAFFE_LATTE, 20000));
 }

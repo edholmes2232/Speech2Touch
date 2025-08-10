@@ -23,13 +23,30 @@ void MainWindow::setupButtons()
   std::sort(
       buttons.begin(), buttons.end(), [](QPushButton *a, QPushButton *b) { return a->objectName() < b->objectName(); });
 
+  // // Sort buttons numerically based on the number in their objectName
+  // std::sort(buttons.begin(),
+  //           buttons.end(),
+  //           [](QPushButton *a, QPushButton *b)
+  //           {
+  //             // Extracts the number after the '_' (e.g., "12" from "pushButton_12")
+  //             int num_a = a->objectName().split('_').last().toInt();
+  //             int num_b = b->objectName().split('_').last().toInt();
+  //             return num_a < num_b;
+  //           });
+
   // Set button names, starting at 0
   for (int i = 0; i < buttons.size(); ++i)
   {
-    // buttons[i]->setObjectName(QString::number(i));
-    // buttons[i]->setText(QString::number(i));
-    buttons[i]->setText(touch_targets[i].name);
-    connect(buttons[i], &QPushButton::released, this, [this, i]() { onButtonReleased(static_cast<TARGET_T>(i)); });
+    if (i < TARGET_COUNT)
+    {
+      buttons[i]->setText(touch_targets[i].name);
+      connect(buttons[i], &QPushButton::released, this, [this, i]() { onButtonReleased(static_cast<TARGET_T>(i)); });
+    }
+    else
+    {
+      buttons[i]->setText(QString("Extra Button %1").arg(i - TARGET_COUNT));
+      connect(buttons[i], &QPushButton::released, this, [this, i]() { onButtonReleased(static_cast<TARGET_T>(i)); });
+    }
   }
 }
 
@@ -41,10 +58,22 @@ MainWindow::MainWindow(QWidget *parent)
 
   setupButtons();
 
+  // Always start on page 0
+  ui->stackedWidget->setCurrentIndex(0);
+  updateWindowTitle();
+
   connect(ui->arrow_right_button, &QPushButton::clicked, this, &MainWindow::nextPage);
   connect(ui->arrow_left_button, &QPushButton::clicked, this, &MainWindow::previousPage);
 
   qDebug() << "MainWindow initialized";
+}
+
+// Helper to update window title
+void MainWindow::updateWindowTitle()
+{
+  int current = ui->stackedWidget->currentIndex() + 1;
+  int total = ui->stackedWidget->count();
+  setWindowTitle(QString("Franke A600 - Page %1 of %2").arg(current).arg(total));
 }
 
 MainWindow::~MainWindow()
@@ -69,7 +98,12 @@ void MainWindow::nextPage()
   }
 
   int currentIndex = ui->stackedWidget->currentIndex();
-  int nextIndex = (currentIndex + 1) % count;
+  if (currentIndex >= count - 1)
+  {
+    qDebug() << "Already at last page, cannot go to next page.";
+    return;
+  }
+  int nextIndex = currentIndex + 1;
   switchPages(nextIndex, 1);
   qDebug() << "Switched to next page:" << nextIndex;
 }
@@ -89,7 +123,12 @@ void MainWindow::previousPage()
   }
 
   int currentIndex = ui->stackedWidget->currentIndex();
-  int previousIndex = (currentIndex - 1 + count) % count;
+  if (currentIndex <= 0)
+  {
+    qDebug() << "Already at first page, cannot go to previous page.";
+    return;
+  }
+  int previousIndex = currentIndex - 1;
   switchPages(previousIndex, -1);
   qDebug() << "Switched to previous page:" << previousIndex;
 }
@@ -156,6 +195,7 @@ void MainWindow::switchPages(int index, int direction)
 
             _is_switching = false;
 
+            updateWindowTitle();
             qDebug() << "Page switch animation finished";
           });
 
