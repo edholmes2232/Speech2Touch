@@ -15,6 +15,8 @@ static TX_QUEUE _usb_hid_msg_queue;
 
 // Max size of the queue = Max number of pages to navigate
 #define USB_HID_Q_FULL_SIZE (sizeof(TOUCH_EVENT_T) * 5)
+// Delay between pressing and releasing the touch (30 ms) in ticks
+#define PRESS_RELEASE_DELAY_TICKS (30 * TX_TIMER_TICKS_PER_SECOND / 1000)
 #define MAX_X_COORD 10000
 #define MAX_Y_COORD 10000
 
@@ -122,7 +124,7 @@ void TOUCH_Thread(ULONG thread_input)
         }
 
         // Wait for host to process the "down" state before sending "up"
-        tx_thread_sleep(30);
+        tx_thread_sleep(PRESS_RELEASE_DELAY_TICKS);
 
         status = _ux_device_class_hid_event_set(_hid_instance, &released_touch_event);
         if (status != UX_SUCCESS)
@@ -133,7 +135,8 @@ void TOUCH_Thread(ULONG thread_input)
         if (event.delay_ms > 0)
         {
           log_info("Delaying for %d ms", event.delay_ms);
-          tx_thread_sleep(event.delay_ms);
+          tx_thread_sleep(event.delay_ms * TX_TIMER_TICKS_PER_SECOND / 1000);
+          log_info("Delay complete");
         }
       }
     }

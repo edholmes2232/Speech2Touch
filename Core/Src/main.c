@@ -78,8 +78,7 @@ int _write(int le, char *ptr, int len)
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-extern TX_QUEUE _usb_hid_msg_queue;
-
+#include "touch_mapper.h"
 // Button callback
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -88,15 +87,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   {
     LED_SetState(LED_2, 1);
 
-    TARGET_T target_event = TARGET_ESPRESSO;
-
-    TOUCH_EVENT_T touch_event = {.x = TOUCH_MAX_X_COORD / 4, .y = TOUCH_MAX_Y_COORD / 4};
-
-    UINT ret = TOUCH_QueuePush(&touch_event);
-    if (ret != UX_SUCCESS)
-    {
-      log_error("Failed to send target in queue: %d", ret);
-    }
+    TOUCHMAPPER_ResetState();
   }
 }
 

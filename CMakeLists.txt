@@ -65,6 +65,7 @@ else()
         ${CMAKE_SOURCE_DIR}/Core/Src/led.c
         ${CMAKE_SOURCE_DIR}/Core/Src/speech.c
         ${CMAKE_SOURCE_DIR}/Core/Src/touch.c
+        ${CMAKE_SOURCE_DIR}/Core/Src/touch_mapper.c
         ${CMAKE_SOURCE_DIR}/Core/Lib/log/log.c
     )
     
