@@ -10,6 +10,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
+add_compile_options(-fdiagnostics-color=always)
+
+
 # Conditional toolchain inclusion based on build type
 if(${CMAKE_BUILD_TYPE} STREQUAL "Test")
     set(CMAKE_PROJECT_NAME Speech2Touch_Test)
@@ -61,12 +64,15 @@ else()
         ${CMAKE_SOURCE_DIR}/Core/Src/audio.c
         ${CMAKE_SOURCE_DIR}/Core/Src/led.c
         ${CMAKE_SOURCE_DIR}/Core/Src/speech.c
+        ${CMAKE_SOURCE_DIR}/Core/Src/touch.c
+        ${CMAKE_SOURCE_DIR}/Core/Lib/log/log.c
     )
     
     # Add include paths
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user defined include paths
         ${CMAKE_SOURCE_DIR}/Core/Lib/picovoice/include
+        ${CMAKE_SOURCE_DIR}/Core/Lib/log
     )
     
     # Add project symbols (macros)
@@ -75,6 +81,8 @@ else()
         __PV_LANGUAGE_ENGLISH__
         # Send AUDIO over USART
         # AUDIO_OVER_USART
+        # Log colour output
+        LOG_USE_COLOR
     )
     
     # Add linked libraries
