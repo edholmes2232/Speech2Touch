@@ -6,6 +6,10 @@
 #include <QParallelAnimationGroup>
 #include <future>
 
+// Forward declarations for Qt and Linux-specific types
+class QSocketNotifier;
+struct input_absinfo;
+
 QT_BEGIN_NAMESPACE
 namespace Ui
 {
@@ -29,6 +33,8 @@ class MainWindow : public QMainWindow
   void previousPage();
   void onButtonReleased(TARGET_T button);
   void updateWindowTitle();
+  // Slot to be called by the notifier when the touch device has data
+  void readTouchDevice();
 
   private:
   Ui::MainWindow *ui;
@@ -46,4 +52,19 @@ class MainWindow : public QMainWindow
   void setupButtons();
 
   std::promise<TARGET_T> *_button_released_promise = nullptr;
+
+  // --- New members for raw touch input handling ---
+  void initTouchDevice(); // Initializes the touch device
+  void processTouchEvent(); // Helper to process coordinates and post events
+
+  int m_touchFd; // File descriptor for the touch device
+  QSocketNotifier *m_notifier; // Notifier for reading data without blocking
+
+  // To store device capabilities and current state
+  input_absinfo *m_axisInfoX;
+  input_absinfo *m_axisInfoY;
+  int m_currentX;
+  int m_currentY;
+  bool m_isTouched;
+  bool m_wasTouched; // To detect press vs. release events
 };
