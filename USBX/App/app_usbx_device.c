@@ -23,12 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stm32wbxx_hal_pwr_ex.h"
-#include "touch_targets.h"
-#include "usb.h"
-#include "ux_dcd_stm32.h"
-#include "ux_device_class_hid.h"
-#include "ux_utility.h"
+#include "touch.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,9 +49,6 @@ static UX_SLAVE_CLASS_HID_PARAMETER custom_hid_parameter;
 static TX_THREAD ux_device_app_thread;
 
 /* USER CODE BEGIN PV */
-static volatile UX_SLAVE_CLASS_HID *_hid_instance = NULL;
-
-TX_QUEUE _usb_hid_msg_queue;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -152,8 +144,8 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
 
   /* USER CODE BEGIN CUSTOM_HID_PARAMETER */
 
-  custom_hid_parameter.ux_slave_class_hid_instance_activate = USBD_HID_Activate;
-  custom_hid_parameter.ux_slave_class_hid_instance_deactivate = USBD_HID_Deactivate;
+  custom_hid_parameter.ux_slave_class_hid_instance_activate = TOUCH_UsbHidActivate;
+  custom_hid_parameter.ux_slave_class_hid_instance_deactivate = TOUCH_UsbHidDeactivate;
 
   /* USER CODE END CUSTOM_HID_PARAMETER */
 
@@ -203,15 +195,11 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* USER CODE BEGIN MX_USBX_Device_Init1 */
-  CHAR *ptr;
-  if (tx_queue_create(
-          &_usb_hid_msg_queue, "usb hid msg queue", sizeof(TARGET_T), ptr, (sizeof(TARGET_T) * 2) * sizeof(ULONG))
-      != TX_SUCCESS)
+  ret = TOUCH_Init(memory_ptr);
+  if (ret != UX_SUCCESS)
   {
-    printf("Failed to create USB HID message queue\n");
-    return TX_QUEUE_ERROR;
+    return ret;
   }
-
   /* USER CODE END MX_USBX_Device_Init1 */
 
   return ret;
@@ -225,103 +213,10 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
 static VOID app_ux_device_thread_entry(ULONG thread_input)
 {
   /* USER CODE BEGIN app_ux_device_thread_entry */
-  TX_PARAMETER_NOT_USED(thread_input);
-
-  HAL_PWREx_EnableVddUSB();
-  MX_USB_PCD_Init();
-
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x00, PCD_SNG_BUF, 0x0C);
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x80, PCD_SNG_BUF, 0x4C);
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x81, PCD_SNG_BUF, 0x8C);
-  ux_dcd_stm32_initialize((ULONG)USB, (ULONG)&hpcd_USB_FS);
-  /* Start the USB device */
-  HAL_PCD_Start(&hpcd_USB_FS);
-
-  printf("USBX Device Thread Started\n");
-
-  UINT status;
-
-#pragma pack(1)
-  typedef struct
-  {
-    uint8_t state; // Bit 0: Tip Switch
-    uint16_t x;
-    uint16_t y;
-  } TouchScreenReport_t;
-#pragma pack()
-
-  TouchScreenReport_t touch_report;
-
-  // Wait for USB to be activated
-  for (;;)
-  {
-    // Wait for a QUEUE message indicating USB activation
-    TARGET_T target;
-    if (tx_queue_receive(&_usb_hid_msg_queue, &target, TX_WAIT_FOREVER) == TX_SUCCESS)
-    {
-      printf("Received USB HID target: %d\n", target);
-
-      // Only send if USB is activated
-      if (_hid_instance == UX_NULL)
-      {
-        printf("USB HID instance is NULL, cannot send report\n");
-      }
-      else
-      {
-        // Match descriptor
-        // Update touch_report
-        touch_report.x = 5000;
-        touch_report.y = 5000;
-
-        // Create touch events
-        UX_SLAVE_CLASS_HID_EVENT pressed_touch_event;
-        ux_utility_memory_set(&pressed_touch_event, 0, sizeof(pressed_touch_event));
-        // Set report id ourselves
-        pressed_touch_event.ux_device_class_hid_event_report_id = 0x01;
-        // Always this length
-        pressed_touch_event.ux_device_class_hid_event_length = sizeof(TouchScreenReport_t);
-        // Button pressed
-        touch_report.state = 0x01; // Set Tip Switch bit to 1
-        // Copy our event data into hid event
-        ux_utility_memory_copy(
-            pressed_touch_event.ux_device_class_hid_event_buffer, &touch_report, sizeof(TouchScreenReport_t));
-
-        // Make a copy for release event
-        UX_SLAVE_CLASS_HID_EVENT released_touch_event = pressed_touch_event;
-        // Button released
-        ((TouchScreenReport_t *)released_touch_event.ux_device_class_hid_event_buffer)->state = 0x00;
-
-        status = _ux_device_class_hid_event_set(_hid_instance, &pressed_touch_event);
-        if (status != UX_SUCCESS)
-        {
-          printf("Failed to send USB HID report\n");
-        }
-
-        // Wait for host to process the "down" state before sending "up"
-        tx_thread_sleep(30);
-
-        status = _ux_device_class_hid_event_set(_hid_instance, &released_touch_event);
-        if (status != UX_SUCCESS)
-        {
-          printf("Failed to send USB HID report\n");
-        }
-      }
-    }
-  }
-
+  TOUCH_Thread(thread_input);
   /* USER CODE END app_ux_device_thread_entry */
 }
 
 /* USER CODE BEGIN 1 */
-VOID USBD_HID_Activate(VOID *hid_instance)
-{
-  _hid_instance = (UX_SLAVE_CLASS_HID *)hid_instance;
-  printf("USB HID Activated\n");
-}
 
-VOID USBD_HID_Deactivate(VOID *hid_instance)
-{
-  _hid_instance = UX_NULL;
-  printf("USB HID Deactivated\n");
-}
 /* USER CODE END 1 */
