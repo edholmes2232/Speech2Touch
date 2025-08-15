@@ -3,10 +3,32 @@
 #include "touch_targets.h"
 #include "ui_Franke-A600.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QEasingCurve>
+#include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QRect>
+#include <QSocketNotifier>
+
+// === Required Linux Headers for Raw Input ===
+#include <fcntl.h>
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+// ============================================
+
+// ##########################################################################
+// # CRITICAL INSTRUCTIONS FOR TOUCH INPUT                                  #
+// ##########################################################################
+// # 1. DEVICE PATH: You MUST change "/dev/input/event4" below to the       #
+// #    correct event device for your touchscreen. Find it by running       #
+// #    `cat /proc/bus/input/devices` in your terminal.                     #
+// #                                                                        #
+// # 2. PERMISSIONS: To perform an exclusive grab, this application MUST be #
+// #    run with root privileges. For testing, use `sudo`:                  #
+// #    `sudo ./your_application_name`                                      #
+// ##########################################################################
 
 void MainWindow::setupButtons()
 {
@@ -22,17 +44,6 @@ void MainWindow::setupButtons()
   // Sort buttons by name
   std::sort(
       buttons.begin(), buttons.end(), [](QPushButton *a, QPushButton *b) { return a->objectName() < b->objectName(); });
-
-  // // Sort buttons numerically based on the number in their objectName
-  // std::sort(buttons.begin(),
-  //           buttons.end(),
-  //           [](QPushButton *a, QPushButton *b)
-  //           {
-  //             // Extracts the number after the '_' (e.g., "12" from "pushButton_12")
-  //             int num_a = a->objectName().split('_').last().toInt();
-  //             int num_b = b->objectName().split('_').last().toInt();
-  //             return num_a < num_b;
-  //           });
 
   // Set button names, starting at 0
   for (int i = 0; i < buttons.size(); ++i)
@@ -53,10 +64,21 @@ void MainWindow::setupButtons()
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , m_touchFd(-1)
+    , m_notifier(nullptr)
+    , m_axisInfoX(new input_absinfo)
+    , m_axisInfoY(new input_absinfo)
+    , m_currentX(0)
+    , m_currentY(0)
+    , m_isTouched(false)
+    , m_wasTouched(false)
 {
   ui->setupUi(this);
 
   setupButtons();
+
+  // Initialize the raw touch device input
+  initTouchDevice();
 
   // Always start on page 0
   ui->stackedWidget->setCurrentIndex(0);
@@ -68,18 +90,162 @@ MainWindow::MainWindow(QWidget *parent)
   qDebug() << "MainWindow initialized";
 }
 
+MainWindow::~MainWindow()
+{
+  if (m_touchFd >= 0)
+  {
+    // IMPORTANT: Release the grab before closing the application
+    ioctl(m_touchFd, EVIOCGRAB, 0);
+    ::close(m_touchFd);
+  }
+  delete m_axisInfoX;
+  delete m_axisInfoY;
+  delete ui;
+  qDebug() << "MainWindow destroyed";
+}
+
+void MainWindow::initTouchDevice()
+{
+  // *** IMPORTANT: REPLACE WITH YOUR DEVICE'S PATH ***
+  const char *devicePath = "/dev/input/event4";
+
+  m_touchFd = open(devicePath, O_RDONLY | O_NONBLOCK);
+
+  if (m_touchFd < 0)
+  {
+    qWarning() << "FATAL: Failed to open touch device:" << devicePath << ". Check path and permissions.";
+    return;
+  }
+
+  // Grab the device for exclusive access to hide it from the OS
+  if (ioctl(m_touchFd, EVIOCGRAB, 1) < 0)
+  {
+    qWarning() << "FATAL: EVIOCGRAB failed. Are you running with sudo?";
+    ::close(m_touchFd);
+    m_touchFd = -1;
+    return;
+  }
+
+  // Get the valid range of X and Y absolute coordinates from the driver
+  if (ioctl(m_touchFd, EVIOCGABS(ABS_X), m_axisInfoX) < 0 || ioctl(m_touchFd, EVIOCGABS(ABS_Y), m_axisInfoY) < 0)
+  {
+    qWarning() << "FATAL: Could not get axis info from touch device.";
+    ioctl(m_touchFd, EVIOCGRAB, 0); // Release grab
+    ::close(m_touchFd);
+    m_touchFd = -1;
+    return;
+  }
+
+  qDebug() << "Successfully grabbed touch device:" << devicePath;
+  qDebug() << "Touch X Range:" << m_axisInfoX->minimum << "-" << m_axisInfoX->maximum;
+  qDebug() << "Touch Y Range:" << m_axisInfoY->minimum << "-" << m_axisInfoY->maximum;
+
+  // Create a notifier that triggers when there's data to read
+  m_notifier = new QSocketNotifier(m_touchFd, QSocketNotifier::Read, this);
+  connect(m_notifier, &QSocketNotifier::activated, this, &MainWindow::readTouchDevice);
+}
+
+void MainWindow::readTouchDevice()
+{
+  qDebug() << "Reading touch device data...";
+  struct input_event event;
+
+  // Read all available event data from the device
+  while (read(m_touchFd, &event, sizeof(struct input_event)) > 0)
+  {
+    qDebug() << "Event: type=" << event.type << ", code=" << event.code << ", value=" << event.value;
+    if (event.type == EV_ABS)
+    { // Absolute coordinate change
+      if (event.code == ABS_X)
+      {
+        m_currentX = event.value;
+        qDebug() << "  ABS_X updated:" << m_currentX;
+      }
+      else if (event.code == ABS_Y)
+      {
+        m_currentY = event.value;
+        qDebug() << "  ABS_Y updated:" << m_currentY;
+      }
+    }
+    else if (event.type == EV_KEY)
+    { // A "key" or "button" press
+      if (event.code == BTN_TOUCH)
+      {
+        m_isTouched = event.value;
+        qDebug() << "  BTN_TOUCH updated:" << m_isTouched;
+      }
+    }
+    else if (event.type == EV_SYN && event.code == SYN_REPORT)
+    {
+      qDebug() << "  SYN_REPORT received, processing touch event.";
+      // Sync event means a "packet" of data is complete. Process it now.
+      processTouchEvent();
+    }
+  }
+}
+
+void MainWindow::processTouchEvent()
+{
+  // --- 1. Normalize Coordinates to Percentage (0.0 to 1.0) ---
+  float percent_x =
+      static_cast<float>(m_currentX - m_axisInfoX->minimum) / (m_axisInfoX->maximum - m_axisInfoX->minimum);
+  float percent_y =
+      static_cast<float>(m_currentY - m_axisInfoY->minimum) / (m_axisInfoY->maximum - m_axisInfoY->minimum);
+
+  qDebug() << "Normalized coordinates: (" << percent_x << "," << percent_y << ")";
+
+  // --- 2. Map Percentage to Window Coordinates ---
+  QPointF localPos(percent_x * this->width(), percent_y * this->height());
+  qDebug() << "Mapped to window coordinates:" << localPos;
+
+  // --- 3. Determine Event Type and Post It ---
+  QEvent::Type eventType;
+  Qt::MouseButton button = Qt::LeftButton;
+  Qt::MouseButtons buttons;
+
+  if (!m_wasTouched && m_isTouched)
+  {
+    // PRESS: Was not touched, but now is.
+    eventType = QEvent::MouseButtonPress;
+    buttons = Qt::LeftButton;
+    qDebug() << "Touch event: MouseButtonPress at" << localPos;
+  }
+  else if (m_wasTouched && !m_isTouched)
+  {
+    // RELEASE: Was touched, but now is not.
+    eventType = QEvent::MouseButtonRelease;
+    buttons = Qt::NoButton;
+    qDebug() << "Touch event: MouseButtonRelease at" << localPos;
+  }
+  else if (m_isTouched)
+  {
+    // MOVE: Was touched and still is.
+    eventType = QEvent::MouseMove;
+    buttons = Qt::LeftButton;
+    qDebug() << "Touch event: MouseMove at" << localPos;
+  }
+  else
+  {
+    // No event to process if there's no touch
+    qDebug() << "No touch event to process.";
+    return;
+  }
+
+  // Create and post the simulated event
+  QMouseEvent *mouseEvent =
+      new QMouseEvent(eventType, localPos, this->mapToGlobal(localPos.toPoint()), button, buttons, Qt::NoModifier);
+  QCoreApplication::postEvent(this, mouseEvent);
+
+  // Update state for the next event
+  m_wasTouched = m_isTouched;
+}
+
 // Helper to update window title
 void MainWindow::updateWindowTitle()
 {
   int current = ui->stackedWidget->currentIndex() + 1;
   int total = ui->stackedWidget->count();
   setWindowTitle(QString("Franke A600 - Page %1 of %2").arg(current).arg(total));
-}
-
-MainWindow::~MainWindow()
-{
-  delete ui;
-  qDebug() << "MainWindow destroyed";
 }
 
 void MainWindow::nextPage()
