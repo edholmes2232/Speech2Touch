@@ -10,6 +10,9 @@ extern "C"
 
 typedef enum
 {
+  TARGET_NEXT_PAGE,
+  TARGET_PREV_PAGE,
+
   // Page 0
   TARGET_ESPRESSO,
   TARGET_DOUBLE_ESPRESSO,
@@ -45,9 +48,15 @@ typedef enum
 
 typedef struct
 {
+  uint16_t x;
+  uint16_t y;
+} TOUCH_COORD_T;
+
+typedef struct
+{
   uint8_t page;
-  uint8_t x;
-  uint8_t y;
+  uint8_t col;
+  uint8_t row;
   char name[24];
 } TOUCH_TARGET_T;
 
