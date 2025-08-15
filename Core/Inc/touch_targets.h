@@ -8,6 +8,11 @@ extern "C"
 {
 #endif
 
+// Time taken to transition between pages
+#define PAGE_TRANSITION_DELAY_MS 1000
+
+#define MAX_PAGE_COUNT 3
+
 typedef enum
 {
   TARGET_NEXT_PAGE,
