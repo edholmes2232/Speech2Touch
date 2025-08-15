@@ -105,7 +105,10 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "group": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": [
         "$gcc"
       ]
