@@ -107,7 +107,7 @@ MainWindow::~MainWindow()
 void MainWindow::initTouchDevice()
 {
   // *** IMPORTANT: REPLACE WITH YOUR DEVICE'S PATH ***
-  const char *devicePath = "/dev/input/event4";
+  const char *devicePath = "/dev/input/event10";
 
   m_touchFd = open(devicePath, O_RDONLY | O_NONBLOCK);
 
@@ -153,18 +153,18 @@ void MainWindow::readTouchDevice()
   // Read all available event data from the device
   while (read(m_touchFd, &event, sizeof(struct input_event)) > 0)
   {
-    qDebug() << "Event: type=" << event.type << ", code=" << event.code << ", value=" << event.value;
+    qDebug() << "> Event: type=" << event.type << ", code=" << event.code << ", value=" << event.value;
     if (event.type == EV_ABS)
     { // Absolute coordinate change
       if (event.code == ABS_X)
       {
         m_currentX = event.value;
-        qDebug() << "  ABS_X updated:" << m_currentX;
+        qDebug() << ">  ABS_X updated:" << m_currentX;
       }
       else if (event.code == ABS_Y)
       {
         m_currentY = event.value;
-        qDebug() << "  ABS_Y updated:" << m_currentY;
+        qDebug() << ">  ABS_Y updated:" << m_currentY;
       }
     }
     else if (event.type == EV_KEY)
@@ -172,12 +172,12 @@ void MainWindow::readTouchDevice()
       if (event.code == BTN_TOUCH)
       {
         m_isTouched = event.value;
-        qDebug() << "  BTN_TOUCH updated:" << m_isTouched;
+        qDebug() << ">  BTN_TOUCH updated:" << m_isTouched;
       }
     }
     else if (event.type == EV_SYN && event.code == SYN_REPORT)
     {
-      qDebug() << "  SYN_REPORT received, processing touch event.";
+      qDebug() << ">  SYN_REPORT received, processing touch event.";
       // Sync event means a "packet" of data is complete. Process it now.
       processTouchEvent();
     }
@@ -192,7 +192,7 @@ void MainWindow::processTouchEvent()
   float percent_y =
       static_cast<float>(m_currentY - m_axisInfoY->minimum) / (m_axisInfoY->maximum - m_axisInfoY->minimum);
 
-  qDebug() << "Normalized coordinates: (" << percent_x << "," << percent_y << ")";
+  qDebug() << "\nNormalized coordinates: (" << percent_x << "," << percent_y << ")";
 
   // --- 2. Map Percentage to Window Coordinates ---
   QPointF localPos(percent_x * this->width(), percent_y * this->height());
@@ -231,10 +231,28 @@ void MainWindow::processTouchEvent()
     return;
   }
 
-  // Create and post the simulated event
+  // Find child widget at position
+  QWidget *child_widget = this->childAt(localPos.toPoint());
+  if (child_widget)
+  {
+    qDebug() << "Touch event target widget:" << child_widget->objectName();
+  }
+  else
+  {
+    qDebug() << "No widget found at touch position, using MainWindow.";
+    child_widget = this; // Use MainWindow as fallback
+  }
+
+  // Map local position to child widget's local coordinates
+  QPoint widget_local_position = child_widget->mapFrom(this, localPos.toPoint());
+  qDebug() << "Local position for event:" << widget_local_position;
+  QPoint global_position = child_widget->mapToGlobal(widget_local_position);
+  qDebug() << "Global position for event:" << global_position;
+
+  // Post the event to the target widget
   QMouseEvent *mouseEvent =
-      new QMouseEvent(eventType, localPos, this->mapToGlobal(localPos.toPoint()), button, buttons, Qt::NoModifier);
-  QCoreApplication::postEvent(this, mouseEvent);
+      new QMouseEvent(eventType, widget_local_position, global_position, button, buttons, Qt::NoModifier);
+  QCoreApplication::postEvent(child_widget, mouseEvent);
 
   // Update state for the next event
   m_wasTouched = m_isTouched;
