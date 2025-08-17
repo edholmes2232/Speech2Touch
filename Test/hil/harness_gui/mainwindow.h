@@ -1,14 +1,12 @@
 #pragma once
 
+#include "touch_event_parser.h"
 #include "touch_targets.h"
 
 #include <QMainWindow>
 #include <QParallelAnimationGroup>
 #include <future>
-
-// Forward declarations for Qt and Linux-specific types
-class QSocketNotifier;
-struct input_absinfo;
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -22,7 +20,7 @@ class MainWindow : public QMainWindow
   Q_OBJECT
 
   public:
-  explicit MainWindow(QWidget *parent = nullptr);
+  explicit MainWindow(const char *device_path, QWidget *parent = nullptr);
   ~MainWindow();
 
   // For testing: set a promise to be fulfilled on button release
@@ -33,11 +31,10 @@ class MainWindow : public QMainWindow
   void previousPage();
   void onButtonReleased(TARGET_T button);
   void updateWindowTitle();
-  // Slot to be called by the notifier when the touch device has data
-  void readTouchDevice();
 
   private:
-  Ui::MainWindow *ui;
+  std::unique_ptr<Ui::MainWindow> _ui;
+  std::unique_ptr<TouchEventParser> _touch_event_parser;
 
   /**
    * @brief Switch pages with animation.
@@ -53,18 +50,7 @@ class MainWindow : public QMainWindow
 
   std::promise<TARGET_T> *_button_released_promise = nullptr;
 
-  // --- New members for raw touch input handling ---
-  void initTouchDevice(); // Initializes the touch device
-  void processTouchEvent(); // Helper to process coordinates and post events
-
-  int m_touchFd; // File descriptor for the touch device
-  QSocketNotifier *m_notifier; // Notifier for reading data without blocking
-
-  // To store device capabilities and current state
-  input_absinfo *m_axisInfoX;
-  input_absinfo *m_axisInfoY;
-  int m_currentX;
-  int m_currentY;
-  bool m_isTouched;
-  bool m_wasTouched; // To detect press vs. release events
+  // Touch event callback
+  void processTouchEvent(float percent_x, float percent_y, bool is_touched);
+  bool _was_touched = false;
 };

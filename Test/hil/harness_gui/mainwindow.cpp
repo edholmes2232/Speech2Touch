@@ -1,34 +1,22 @@
 #include "mainwindow.h"
 
+#include "touch_event_parser.h"
 #include "touch_targets.h"
 #include "ui_Franke-A600.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QEasingCurve>
+#include <QEvent>
+#include <QList>
 #include <QMouseEvent>
+#include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
+#include <QPushButton>
 #include <QRect>
-#include <QSocketNotifier>
-
-// === Required Linux Headers for Raw Input ===
-#include <fcntl.h>
-#include <linux/input.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-// ============================================
-
-// ##########################################################################
-// # CRITICAL INSTRUCTIONS FOR TOUCH INPUT                                  #
-// ##########################################################################
-// # 1. DEVICE PATH: You MUST change "/dev/input/event4" below to the       #
-// #    correct event device for your touchscreen. Find it by running       #
-// #    `cat /proc/bus/input/devices` in your terminal.                     #
-// #                                                                        #
-// # 2. PERMISSIONS: To perform an exclusive grab, this application MUST be #
-// #    run with root privileges. For testing, use `sudo`:                  #
-// #    `sudo ./your_application_name`                                      #
-// ##########################################################################
+#include <QString>
+#include <algorithm>
+#include <future>
 
 void MainWindow::setupButtons()
 {
@@ -39,13 +27,14 @@ void MainWindow::setupButtons()
   }
 
   // Get all QPushButton children from StackedWidget
-  QList<QPushButton *> buttons = ui->stackedWidget->findChildren<QPushButton *>();
+  QList<QPushButton *> buttons = _ui->stackedWidget->findChildren<QPushButton *>();
 
   // Sort buttons by name
   std::sort(
       buttons.begin(), buttons.end(), [](QPushButton *a, QPushButton *b) { return a->objectName() < b->objectName(); });
 
   // Set button names, starting at 0
+  // Assumes first actual target starts at index 0
   for (int i = 0; i < buttons.size(); ++i)
   {
     if (i < TARGET_COUNT)
@@ -61,178 +50,70 @@ void MainWindow::setupButtons()
   }
 }
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(const char *device_path, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , m_touchFd(-1)
-    , m_notifier(nullptr)
-    , m_axisInfoX(new input_absinfo)
-    , m_axisInfoY(new input_absinfo)
-    , m_currentX(0)
-    , m_currentY(0)
-    , m_isTouched(false)
-    , m_wasTouched(false)
+    , _ui(std::make_unique<Ui::MainWindow>())
+    , _touch_event_parser(nullptr)
+    , _was_touched(false)
 {
-  ui->setupUi(this);
-
+  _ui->setupUi(this);
   setupButtons();
 
-  // Initialize the raw touch device input
-  initTouchDevice();
+  _touch_event_parser = std::make_unique<TouchEventParser>(device_path,
+                                                           [this](float percent_x, float percent_y, bool is_touched) {
+                                                             this->processTouchEvent(percent_x, percent_y, is_touched);
+                                                           });
 
-  // Always start on page 0
-  ui->stackedWidget->setCurrentIndex(0);
+  _ui->stackedWidget->setCurrentIndex(0);
   updateWindowTitle();
 
-  connect(ui->arrow_right_button, &QPushButton::clicked, this, &MainWindow::nextPage);
-  connect(ui->arrow_left_button, &QPushButton::clicked, this, &MainWindow::previousPage);
+  connect(_ui->arrow_right_button, &QPushButton::clicked, this, &MainWindow::nextPage);
+  connect(_ui->arrow_left_button, &QPushButton::clicked, this, &MainWindow::previousPage);
 
   qDebug() << "MainWindow initialized";
 }
 
 MainWindow::~MainWindow()
 {
-  if (m_touchFd >= 0)
-  {
-    // IMPORTANT: Release the grab before closing the application
-    ioctl(m_touchFd, EVIOCGRAB, 0);
-    ::close(m_touchFd);
-  }
-  delete m_axisInfoX;
-  delete m_axisInfoY;
-  delete ui;
+  // unique_ptr handles cleanup
   qDebug() << "MainWindow destroyed";
 }
 
-void MainWindow::initTouchDevice()
+void MainWindow::processTouchEvent(float percent_x, float percent_y, bool is_touched)
 {
-  // *** IMPORTANT: REPLACE WITH YOUR DEVICE'S PATH ***
-  const char *devicePath = "/dev/input/event10";
+  QPointF local_pos(percent_x * this->width(), percent_y * this->height());
+  qDebug() << "Mapped to window coordinates:" << local_pos;
 
-  m_touchFd = open(devicePath, O_RDONLY | O_NONBLOCK);
-
-  if (m_touchFd < 0)
-  {
-    qWarning() << "FATAL: Failed to open touch device:" << devicePath << ". Check path and permissions.";
-    return;
-  }
-
-  // Grab the device for exclusive access to hide it from the OS
-  if (ioctl(m_touchFd, EVIOCGRAB, 1) < 0)
-  {
-    qWarning() << "FATAL: EVIOCGRAB failed. Are you running with sudo?";
-    ::close(m_touchFd);
-    m_touchFd = -1;
-    return;
-  }
-
-  // Get the valid range of X and Y absolute coordinates from the driver
-  if (ioctl(m_touchFd, EVIOCGABS(ABS_X), m_axisInfoX) < 0 || ioctl(m_touchFd, EVIOCGABS(ABS_Y), m_axisInfoY) < 0)
-  {
-    qWarning() << "FATAL: Could not get axis info from touch device.";
-    ioctl(m_touchFd, EVIOCGRAB, 0); // Release grab
-    ::close(m_touchFd);
-    m_touchFd = -1;
-    return;
-  }
-
-  qDebug() << "Successfully grabbed touch device:" << devicePath;
-  qDebug() << "Touch X Range:" << m_axisInfoX->minimum << "-" << m_axisInfoX->maximum;
-  qDebug() << "Touch Y Range:" << m_axisInfoY->minimum << "-" << m_axisInfoY->maximum;
-
-  // Create a notifier that triggers when there's data to read
-  m_notifier = new QSocketNotifier(m_touchFd, QSocketNotifier::Read, this);
-  connect(m_notifier, &QSocketNotifier::activated, this, &MainWindow::readTouchDevice);
-}
-
-void MainWindow::readTouchDevice()
-{
-  qDebug() << "Reading touch device data...";
-  struct input_event event;
-
-  // Read all available event data from the device
-  while (read(m_touchFd, &event, sizeof(struct input_event)) > 0)
-  {
-    qDebug() << "> Event: type=" << event.type << ", code=" << event.code << ", value=" << event.value;
-    if (event.type == EV_ABS)
-    { // Absolute coordinate change
-      if (event.code == ABS_X)
-      {
-        m_currentX = event.value;
-        qDebug() << ">  ABS_X updated:" << m_currentX;
-      }
-      else if (event.code == ABS_Y)
-      {
-        m_currentY = event.value;
-        qDebug() << ">  ABS_Y updated:" << m_currentY;
-      }
-    }
-    else if (event.type == EV_KEY)
-    { // A "key" or "button" press
-      if (event.code == BTN_TOUCH)
-      {
-        m_isTouched = event.value;
-        qDebug() << ">  BTN_TOUCH updated:" << m_isTouched;
-      }
-    }
-    else if (event.type == EV_SYN && event.code == SYN_REPORT)
-    {
-      qDebug() << ">  SYN_REPORT received, processing touch event.";
-      // Sync event means a "packet" of data is complete. Process it now.
-      processTouchEvent();
-    }
-  }
-}
-
-void MainWindow::processTouchEvent()
-{
-  // --- 1. Normalize Coordinates to Percentage (0.0 to 1.0) ---
-  float percent_x =
-      static_cast<float>(m_currentX - m_axisInfoX->minimum) / (m_axisInfoX->maximum - m_axisInfoX->minimum);
-  float percent_y =
-      static_cast<float>(m_currentY - m_axisInfoY->minimum) / (m_axisInfoY->maximum - m_axisInfoY->minimum);
-
-  qDebug() << "\nNormalized coordinates: (" << percent_x << "," << percent_y << ")";
-
-  // --- 2. Map Percentage to Window Coordinates ---
-  QPointF localPos(percent_x * this->width(), percent_y * this->height());
-  qDebug() << "Mapped to window coordinates:" << localPos;
-
-  // --- 3. Determine Event Type and Post It ---
-  QEvent::Type eventType;
+  QEvent::Type event_type;
   Qt::MouseButton button = Qt::LeftButton;
   Qt::MouseButtons buttons;
 
-  if (!m_wasTouched && m_isTouched)
+  if (!_was_touched && is_touched)
   {
-    // PRESS: Was not touched, but now is.
-    eventType = QEvent::MouseButtonPress;
+    event_type = QEvent::MouseButtonPress;
     buttons = Qt::LeftButton;
-    qDebug() << "Touch event: MouseButtonPress at" << localPos;
+    qDebug() << "Touch event: MouseButtonPress at" << local_pos;
   }
-  else if (m_wasTouched && !m_isTouched)
+  else if (_was_touched && !is_touched)
   {
-    // RELEASE: Was touched, but now is not.
-    eventType = QEvent::MouseButtonRelease;
+    event_type = QEvent::MouseButtonRelease;
     buttons = Qt::NoButton;
-    qDebug() << "Touch event: MouseButtonRelease at" << localPos;
+    qDebug() << "Touch event: MouseButtonRelease at" << local_pos;
   }
-  else if (m_isTouched)
+  else if (is_touched)
   {
-    // MOVE: Was touched and still is.
-    eventType = QEvent::MouseMove;
+    event_type = QEvent::MouseMove;
     buttons = Qt::LeftButton;
-    qDebug() << "Touch event: MouseMove at" << localPos;
+    qDebug() << "Touch event: MouseMove at" << local_pos;
   }
   else
   {
-    // No event to process if there's no touch
     qDebug() << "No touch event to process.";
+    _was_touched = is_touched;
     return;
   }
 
-  // Find child widget at position
-  QWidget *child_widget = this->childAt(localPos.toPoint());
+  QWidget *child_widget = this->childAt(local_pos.toPoint());
   if (child_widget)
   {
     qDebug() << "Touch event target widget:" << child_widget->objectName();
@@ -240,29 +121,24 @@ void MainWindow::processTouchEvent()
   else
   {
     qDebug() << "No widget found at touch position, using MainWindow.";
-    child_widget = this; // Use MainWindow as fallback
+    child_widget = this;
   }
 
-  // Map local position to child widget's local coordinates
-  QPoint widget_local_position = child_widget->mapFrom(this, localPos.toPoint());
-  qDebug() << "Local position for event:" << widget_local_position;
+  QPoint widget_local_position = child_widget->mapFrom(this, local_pos.toPoint());
   QPoint global_position = child_widget->mapToGlobal(widget_local_position);
-  qDebug() << "Global position for event:" << global_position;
 
-  // Post the event to the target widget
-  QMouseEvent *mouseEvent =
-      new QMouseEvent(eventType, widget_local_position, global_position, button, buttons, Qt::NoModifier);
-  QCoreApplication::postEvent(child_widget, mouseEvent);
+  QMouseEvent *mouse_event =
+      new QMouseEvent(event_type, widget_local_position, global_position, button, buttons, Qt::NoModifier);
+  QCoreApplication::postEvent(child_widget, mouse_event);
 
-  // Update state for the next event
-  m_wasTouched = m_isTouched;
+  _was_touched = is_touched;
 }
 
 // Helper to update window title
 void MainWindow::updateWindowTitle()
 {
-  int current = ui->stackedWidget->currentIndex() + 1;
-  int total = ui->stackedWidget->count();
+  int current = _ui->stackedWidget->currentIndex() + 1;
+  int total = _ui->stackedWidget->count();
   setWindowTitle(QString("Franke A600 - Page %1 of %2").arg(current).arg(total));
 }
 
@@ -274,22 +150,22 @@ void MainWindow::nextPage()
     return;
   }
 
-  int count = ui->stackedWidget->count();
+  int count = _ui->stackedWidget->count();
   if (count <= 1)
   {
     qDebug() << "No pages to switch to.";
     return;
   }
 
-  int currentIndex = ui->stackedWidget->currentIndex();
-  if (currentIndex >= count - 1)
+  int current_index = _ui->stackedWidget->currentIndex();
+  if (current_index >= count - 1)
   {
     qDebug() << "Already at last page, cannot go to next page.";
     return;
   }
-  int nextIndex = currentIndex + 1;
-  switchPages(nextIndex, 1);
-  qDebug() << "Switched to next page:" << nextIndex;
+  int next_index = current_index + 1;
+  switchPages(next_index, 1);
+  qDebug() << "Switched to next page:" << next_index;
 }
 
 void MainWindow::previousPage()
@@ -299,22 +175,22 @@ void MainWindow::previousPage()
     qDebug() << "Already switching pages, ignoring previousPage request.";
     return;
   }
-  int count = ui->stackedWidget->count();
+  int count = _ui->stackedWidget->count();
   if (count <= 1)
   {
     qDebug() << "No pages to switch to.";
     return;
   }
 
-  int currentIndex = ui->stackedWidget->currentIndex();
-  if (currentIndex <= 0)
+  int current_index = _ui->stackedWidget->currentIndex();
+  if (current_index <= 0)
   {
     qDebug() << "Already at first page, cannot go to previous page.";
     return;
   }
-  int previousIndex = currentIndex - 1;
-  switchPages(previousIndex, -1);
-  qDebug() << "Switched to previous page:" << previousIndex;
+  int previous_index = current_index - 1;
+  switchPages(previous_index, -1);
+  qDebug() << "Switched to previous page:" << previous_index;
 }
 
 void MainWindow::switchPages(int index, int direction)
@@ -322,30 +198,30 @@ void MainWindow::switchPages(int index, int direction)
   _is_switching = true;
   qDebug() << "Switching pages to index:" << index << "direction:" << direction;
 
-  int currentIndex = ui->stackedWidget->currentIndex();
+  int current_index = _ui->stackedWidget->currentIndex();
 
-  QWidget *currentWidget = ui->stackedWidget->widget(currentIndex);
-  QWidget *nextWidget = ui->stackedWidget->widget(index);
+  QWidget *current_widget = _ui->stackedWidget->widget(current_index);
+  QWidget *next_widget = _ui->stackedWidget->widget(index);
 
   // Get stacked widget area
-  QRect area = ui->stackedWidget->geometry();
+  QRect area = _ui->stackedWidget->geometry();
   int width = area.width();
 
   // Move next widget off screen based on direction
   if (direction == 1)
   {
-    nextWidget->setGeometry(width, 0, width, area.height());
+    next_widget->setGeometry(width, 0, width, area.height());
   }
   else
   {
-    nextWidget->setGeometry(-width, 0, width, area.height());
+    next_widget->setGeometry(-width, 0, width, area.height());
   }
 
   // Show next widget
-  nextWidget->show();
+  next_widget->show();
 
   // Animate the switch
-  auto animate_current = new QPropertyAnimation(currentWidget, "geometry");
+  auto animate_current = new QPropertyAnimation(current_widget, "geometry");
   animate_current->setDuration(_switch_duration_ms);
   animate_current->setEasingCurve(QEasingCurve::InOutQuad);
   if (direction == 1)
@@ -357,25 +233,25 @@ void MainWindow::switchPages(int index, int direction)
     animate_current->setEndValue(QRect(width, 0, width, area.height()));
   }
 
-  auto animate_next = new QPropertyAnimation(nextWidget, "geometry");
+  auto animate_next = new QPropertyAnimation(next_widget, "geometry");
   animate_next->setDuration(_switch_duration_ms);
   animate_next->setEasingCurve(QEasingCurve::InOutQuad);
-  animate_next->setStartValue(nextWidget->geometry());
+  animate_next->setStartValue(next_widget->geometry());
   animate_next->setEndValue(QRect(0, 0, width, area.height()));
 
-  auto animationGroup = new QParallelAnimationGroup(this);
-  animationGroup->addAnimation(animate_current);
-  animationGroup->addAnimation(animate_next);
+  auto animation_group = new QParallelAnimationGroup(this);
+  animation_group->addAnimation(animate_current);
+  animation_group->addAnimation(animate_next);
 
-  connect(animationGroup,
+  connect(animation_group,
           &QParallelAnimationGroup::finished,
           this,
-          [this, index, currentWidget, area]()
+          [this, index, current_widget, area]()
           {
             // Set index
-            ui->stackedWidget->setCurrentIndex(index);
+            _ui->stackedWidget->setCurrentIndex(index);
             // Reset position
-            currentWidget->setGeometry(0, 0, area.width(), area.height());
+            current_widget->setGeometry(0, 0, area.width(), area.height());
 
             _is_switching = false;
 
@@ -383,7 +259,7 @@ void MainWindow::switchPages(int index, int direction)
             qDebug() << "Page switch animation finished";
           });
 
-  animationGroup->start(QAbstractAnimation::DeleteWhenStopped);
+  animation_group->start(QAbstractAnimation::DeleteWhenStopped);
   qDebug() << "Page switch animation started";
 }
 

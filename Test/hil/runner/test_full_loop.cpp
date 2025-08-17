@@ -6,10 +6,19 @@
 #include <QMetaObject>
 #include <QPushButton>
 #include <Qt>
+#include <atomic>
+#include <boost/program_options.hpp>
 #include <chrono>
 #include <future>
 #include <gtest/gtest.h>
+#include <iostream>
+#include <string>
 #include <thread>
+
+// Global device path for use in test fixture
+std::string _input_device_path;
+
+namespace po = boost::program_options;
 
 class HilTest : public ::testing::Test
 {
@@ -23,6 +32,12 @@ class HilTest : public ::testing::Test
   void SetUp() override
   {
 
+    // Check if input device path is set
+    if (_input_device_path.empty())
+    {
+      GTEST_FAIL() << "Input device path is required. Use --input argument to specify it.";
+    }
+
     // Launch the Qt event loop in a separate thread
     _qt_thread = std::thread(
         [&]()
@@ -31,10 +46,9 @@ class HilTest : public ::testing::Test
           char *argv[] = {(char *)"test", nullptr};
 
           QApplication app(argc, argv);
-          MainWindow window;
+          MainWindow window(_input_device_path.c_str());
 
           _qt_app = &app;
-
           _main_window = &window;
           _main_window->show();
 
@@ -90,4 +104,43 @@ class HilTest : public ::testing::Test
 TEST_F(HilTest, CaffeLattePressed)
 {
   ASSERT_TRUE(expectButtonReleased(TARGET_CAFFE_LATTE, 20000));
+}
+
+int main(int argc, char **argv)
+{
+  namespace po = boost::program_options;
+  po::options_description desc("Allowed options");
+  desc.add_options()("help,h", "produce help message")(
+      "input", po::value<std::string>(), "input device path (e.g. /dev/input/eventX)");
+
+  po::variables_map vm;
+  try
+  {
+    po::parsed_options parsed = po::command_line_parser(argc, argv).options(desc).allow_unregistered().run();
+    po::store(parsed, vm);
+    po::notify(vm);
+  }
+  catch (const std::exception &e)
+  {
+    std::cerr << "Error parsing command line: " << e.what() << std::endl;
+    return 1;
+  }
+
+  if (vm.count("help"))
+  {
+    std::cout << desc << std::endl;
+    return 0;
+  }
+  if (vm.count("input"))
+  {
+    _input_device_path = vm["input"].as<std::string>();
+  }
+  else
+  {
+    std::cerr << "--input argument is required" << std::endl;
+    _input_device_path = {};
+  }
+
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
