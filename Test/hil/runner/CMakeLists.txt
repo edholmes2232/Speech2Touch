@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable testing
 enable_testing()
 
+# Find Boost program_options
+find_package(Boost REQUIRED COMPONENTS program_options)
+
 # Add the harness GUI library subdirectory
 add_subdirectory(../harness_gui harness_gui_build)
 
@@ -36,6 +39,7 @@ target_link_libraries(
   test_full_loop
   GTest::gtest_main
   harness_gui_lib
+  Boost::program_options
 )
 
 include(GoogleTest)
