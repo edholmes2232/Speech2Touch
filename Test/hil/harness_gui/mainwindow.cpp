@@ -48,6 +48,10 @@ void MainWindow::setupButtons()
       connect(buttons[i], &QPushButton::released, this, [this, i]() { onButtonReleased(static_cast<TARGET_T>(i)); });
     }
   }
+
+  // print some sizes for debugging
+  qDebug() << "Each button is " << buttons[0]->width() << "x" << buttons[0]->height();
+  qDebug() << "StackedWidget size is " << _ui->stackedWidget->width() << "x" << _ui->stackedWidget->height();
 }
 
 MainWindow::MainWindow(const char *device_path, QWidget *parent)
