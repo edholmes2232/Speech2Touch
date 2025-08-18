@@ -1,0 +1,52 @@
+context:
+  expressions:
+    orderBeverage:
+      - "@brew [a, an] $beverage:beverage"
+    cancel:
+      - "@actions"
+  slots:
+    beverage:
+      - cold milk foam
+      - warm milk foam
+      - cold milk
+      - hot water
+      - hot milk foam
+      - hot milk
+      - hot latte
+      - iced chocolate
+      - weak cappuccino
+      - weak latte
+      - iced coffee
+      - strong cappuccino
+      - strong latte
+      - dirty chai
+      - chai latte
+      - hot chocolate
+      - piccolo latte
+      - magic
+      - flat white
+      - caffe latte
+      - long black
+      - espresso macchiato
+      - double espresso
+      - cappuccino
+      - espresso
+      - latte
+      - mocha
+  macros:
+    brew:
+      - brew
+      - brew me
+      - can I get
+      - can I have
+      - I want
+      - get me
+      - give me
+      - I'd like
+      - make me
+      - may I have
+      - I'll have
+      - I'll take
+      - I'll get
+    actions:
+      - cancel
