@@ -27,6 +27,7 @@
 #include "usart.h"
 #include "usb.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "led.h"
@@ -141,7 +142,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  SPEECH_Init();
+  // SPEECH_Init();
 
   while (1)
   {
@@ -180,7 +181,7 @@ int main(void)
       HAL_Delay(50); // Debounce the release
     }
 */
-    SPEECH_Process();
+    // SPEECH_Process();
 
     /* USER CODE END WHILE */
 
