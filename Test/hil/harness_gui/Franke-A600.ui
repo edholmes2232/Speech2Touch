@@ -21,17 +21,20 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
     <property name="leftMargin">
      <number>0</number>
     </property>
     <property name="topMargin">
-     <number>100</number>
+     <number>65</number>
     </property>
     <property name="rightMargin">
      <number>0</number>
     </property>
     <property name="bottomMargin">
-     <number>100</number>
+     <number>65</number>
     </property>
     <item>
      <widget class="QPushButton" name="arrow_left_button">
@@ -43,7 +46,7 @@
       </property>
       <property name="maximumSize">
        <size>
-        <width>75</width>
+        <width>50</width>
         <height>16777215</height>
        </size>
       </property>
@@ -825,7 +828,7 @@
       </property>
       <property name="maximumSize">
        <size>
-        <width>75</width>
+        <width>50</width>
         <height>16777215</height>
        </size>
       </property>
