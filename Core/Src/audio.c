@@ -21,7 +21,7 @@ static volatile int32_t read_index = -1;
 static int32_t last_read_index = -1;
 
 // ---------------------------- Azure RTOS Config --------------------------- //
-#define NUM_AUDIO_BUFFERS (4)
+#define NUM_AUDIO_BUFFERS (16)
 
 // Audio byte pool
 static TX_BLOCK_POOL _audio_block_pool;
