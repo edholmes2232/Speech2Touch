@@ -39,11 +39,9 @@ class MainWindow : public QMainWindow
   /**
    * @brief Switch pages with animation.
    * @param index The index of the page to switch to.
-   * @param direction The direction to switch (1 for next, -1 for previous).
    */
-  void switchPages(int index, int direction);
+  void switchPages(int index);
 
-  bool _is_switching = false;
   const int _switch_duration_ms = 500;
 
   void setupButtons();
@@ -53,4 +51,8 @@ class MainWindow : public QMainWindow
   // Touch event callback
   void processTouchEvent(float percent_x, float percent_y, bool is_touched);
   bool _was_touched = false;
+
+  int _target_page_index = -1;
+  QParallelAnimationGroup *_current_animation_group = nullptr;
+  QList<int> _page_queue;
 };
