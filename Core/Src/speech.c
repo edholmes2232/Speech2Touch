@@ -46,6 +46,8 @@ static void wakeWordCallback(void)
 {
   log_info("[wake word]\n");
   LED_SetState(LED_0, 1);
+
+  TOUCHMAPPER_ResetState();
 }
 
 static TARGET_T getTargetFromString(const char *target_str)
@@ -262,6 +264,9 @@ static void SPEECH_Process(ULONG thread_input)
 #endif
 
     uint32_t end = HAL_GetTick();
-    // log_trace("processData took %lu ms", end - start);
+    // if ((end - start) > 19)
+    // {
+    //   log_trace("Took %lu ms", end - start);
+    // }
   }
 }
