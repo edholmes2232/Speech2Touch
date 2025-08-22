@@ -91,7 +91,7 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* saiHandle)
        __HAL_RCC_SAI1_CLK_ENABLE();
 
     /* Peripheral interrupt init*/
-    HAL_NVIC_SetPriority(SAI1_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(SAI1_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(SAI1_IRQn);
     }
     SAI1_client ++;
@@ -132,7 +132,7 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* saiHandle)
     hdma_sai1_a.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
     hdma_sai1_a.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
     hdma_sai1_a.Init.Mode = DMA_CIRCULAR;
-    hdma_sai1_a.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_sai1_a.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     if (HAL_DMA_Init(&hdma_sai1_a) != HAL_OK)
     {
       Error_Handler();
