@@ -15,8 +15,11 @@
 #include <QPushButton>
 #include <QRect>
 #include <QString>
+#include <QtGlobal>
 #include <algorithm>
+#include <cstdlib>
 #include <future>
+#include <memory>
 
 void MainWindow::setupButtons()
 {
@@ -148,94 +151,100 @@ void MainWindow::updateWindowTitle()
 
 void MainWindow::nextPage()
 {
-  if (_is_switching)
-  {
-    qDebug() << "Already switching pages, ignoring nextPage request.";
-    return;
-  }
-
   int count = _ui->stackedWidget->count();
   if (count <= 1)
-  {
-    qDebug() << "No pages to switch to.";
     return;
-  }
-
-  int current_index = _ui->stackedWidget->currentIndex();
+  int current_index = _page_queue.isEmpty() ? _ui->stackedWidget->currentIndex() : _page_queue.last();
   if (current_index >= count - 1)
-  {
-    qDebug() << "Already at last page, cannot go to next page.";
     return;
-  }
   int next_index = current_index + 1;
-  switchPages(next_index, 1);
-  qDebug() << "Switched to next page:" << next_index;
+  _page_queue.append(next_index);
+  if (_page_queue.size() == 1 && !_current_animation_group)
+    switchPages(_page_queue.first());
 }
 
 void MainWindow::previousPage()
 {
-  if (_is_switching)
-  {
-    qDebug() << "Already switching pages, ignoring previousPage request.";
-    return;
-  }
   int count = _ui->stackedWidget->count();
   if (count <= 1)
-  {
-    qDebug() << "No pages to switch to.";
     return;
-  }
-
-  int current_index = _ui->stackedWidget->currentIndex();
+  int current_index = _page_queue.isEmpty() ? _ui->stackedWidget->currentIndex() : _page_queue.last();
   if (current_index <= 0)
-  {
-    qDebug() << "Already at first page, cannot go to previous page.";
     return;
-  }
-  int previous_index = current_index - 1;
-  switchPages(previous_index, -1);
-  qDebug() << "Switched to previous page:" << previous_index;
+  int prev_index = current_index - 1;
+  _page_queue.append(prev_index);
+  if (_page_queue.size() == 1 && !_current_animation_group)
+    switchPages(_page_queue.first());
 }
 
-void MainWindow::switchPages(int index, int direction)
+void MainWindow::switchPages(int index)
 {
-  _is_switching = true;
-  qDebug() << "Switching pages to index:" << index << "direction:" << direction;
-
-  int current_index = _ui->stackedWidget->currentIndex();
-
-  QWidget *current_widget = _ui->stackedWidget->widget(current_index);
-  QWidget *next_widget = _ui->stackedWidget->widget(index);
-
-  // Get stacked widget area
   QRect area = _ui->stackedWidget->geometry();
   int width = area.width();
+  int count = _ui->stackedWidget->count();
 
-  // Move next widget off screen based on direction
-  if (direction == 1)
+  int current_index = _ui->stackedWidget->currentIndex();
+  QWidget *current_widget = _ui->stackedWidget->widget(current_index);
+  QRect current_geom = current_widget->geometry();
+
+  static double last_progress = 0.0;
+  static int last_direction = 0;
+  static int last_from = -1;
+  static int last_to = -1;
+
+  double progress = 0.0;
+  int logical_direction = (index > current_index) ? 1 : -1;
+
+  if (_current_animation_group)
   {
-    next_widget->setGeometry(width, 0, width, area.height());
-  }
-  else
-  {
-    next_widget->setGeometry(-width, 0, width, area.height());
+    // Try to get progress of the running animation
+    QPropertyAnimation *anim = qobject_cast<QPropertyAnimation *>(_current_animation_group->animationAt(0));
+    if (anim)
+    {
+      int elapsed = anim->currentTime();
+      progress = qBound(0.0, double(elapsed) / double(_switch_duration_ms), 1.0);
+      last_progress = progress;
+      last_direction = logical_direction;
+      last_from = current_index;
+      last_to = index;
+    }
+    _current_animation_group->stop();
+    _current_animation_group->deleteLater();
+    _current_animation_group = nullptr;
+
+    // HACK: Instantly jump to the same progress between new pages
+    int new_from = current_index;
+    int new_to = index;
+    int new_direction = (new_to > new_from) ? 1 : -1;
+    int from_x = int(-progress * width * last_direction);
+    int to_x = from_x + new_direction * width;
+    QWidget *from_widget = _ui->stackedWidget->widget(new_from);
+    QWidget *to_widget = _ui->stackedWidget->widget(new_to);
+    from_widget->setGeometry(from_x, 0, width, area.height());
+    to_widget->setGeometry(to_x, 0, width, area.height());
+    from_widget->show();
+    to_widget->show();
+    current_widget = from_widget;
+    current_geom = from_widget->geometry();
+    current_index = new_from;
+    logical_direction = new_direction;
   }
 
-  // Show next widget
+  // Prepare the next widget
+  QWidget *next_widget = _ui->stackedWidget->widget(index);
+  QRect next_geom = next_widget->geometry();
+
+  // Place next widget at the correct offset from current
+  int next_x = current_geom.x() + logical_direction * width;
+  next_widget->setGeometry(next_x, 0, width, area.height());
   next_widget->show();
 
-  // Animate the switch
+  // Animate both widgets
   auto animate_current = new QPropertyAnimation(current_widget, "geometry");
   animate_current->setDuration(_switch_duration_ms);
   animate_current->setEasingCurve(QEasingCurve::InOutQuad);
-  if (direction == 1)
-  {
-    animate_current->setEndValue(QRect(-width, 0, width, area.height()));
-  }
-  else
-  {
-    animate_current->setEndValue(QRect(width, 0, width, area.height()));
-  }
+  animate_current->setStartValue(current_geom);
+  animate_current->setEndValue(QRect(current_geom.x() - logical_direction * width, 0, width, area.height()));
 
   auto animate_next = new QPropertyAnimation(next_widget, "geometry");
   animate_next->setDuration(_switch_duration_ms);
@@ -243,27 +252,26 @@ void MainWindow::switchPages(int index, int direction)
   animate_next->setStartValue(next_widget->geometry());
   animate_next->setEndValue(QRect(0, 0, width, area.height()));
 
-  auto animation_group = new QParallelAnimationGroup(this);
-  animation_group->addAnimation(animate_current);
-  animation_group->addAnimation(animate_next);
+  _current_animation_group = new QParallelAnimationGroup(this);
+  _current_animation_group->addAnimation(animate_current);
+  _current_animation_group->addAnimation(animate_next);
 
-  connect(animation_group,
+  connect(_current_animation_group,
           &QParallelAnimationGroup::finished,
           this,
           [this, index, current_widget, area]()
           {
-            // Set index
             _ui->stackedWidget->setCurrentIndex(index);
-            // Reset position
             current_widget->setGeometry(0, 0, area.width(), area.height());
-
-            _is_switching = false;
-
+            _current_animation_group->deleteLater();
+            _current_animation_group = nullptr;
             updateWindowTitle();
-            qDebug() << "Page switch animation finished";
+            _page_queue.removeFirst();
+            if (!_page_queue.isEmpty())
+              switchPages(_page_queue.first());
           });
 
-  animation_group->start(QAbstractAnimation::DeleteWhenStopped);
+  _current_animation_group->start(QAbstractAnimation::DeleteWhenStopped);
   qDebug() << "Page switch animation started";
 }
 
