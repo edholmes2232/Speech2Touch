@@ -27,6 +27,7 @@ static int32_t last_read_index = -1;
 static TX_BLOCK_POOL _audio_block_pool;
 static UCHAR _block_pool_buffer[NUM_AUDIO_BUFFERS * AUDIO_BUFFER_SIZE_BYTES];
 
+// TODO ULONG Queue size
 // Queue containing int16_t* audio buffer addresses
 static TX_QUEUE _audio_data_queue;
 
@@ -120,14 +121,14 @@ void dmaCallbackHandler(int32_t *dma_buffer)
     return;
   }
 
-  processData(_dma_buffer, buffer);
+  processData(dma_buffer, buffer);
 
   // Send the buffer to the queue
   status = tx_queue_send(&_audio_data_queue, &buffer, TX_NO_WAIT);
   if (status != TX_SUCCESS)
   {
     log_error("Failed to send audio buffer to queue, dropping frame");
-    tx_byte_release(buffer);
+    tx_block_release(buffer);
 
     return;
   }
