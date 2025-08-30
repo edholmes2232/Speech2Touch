@@ -1,11 +1,13 @@
 #include "mainwindow.h" // Your window
 #include "touch_targets.h"
+#include "tts.h"
 
 #include <QApplication>
 #include <QList>
 #include <QMetaObject>
 #include <QPushButton>
 #include <Qt>
+#include <algorithm>
 #include <atomic>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -14,22 +16,32 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
 
+namespace po = boost::program_options;
+
+namespace
+{
 // Global device path for use in test fixture
 std::string _input_device_path;
 
-namespace po = boost::program_options;
+MainWindow *_main_window;
+QApplication *_qt_app;
+std::thread _qt_thread;
+};
 
 class HilTest : public ::testing::Test
 {
   protected:
-  MainWindow *_main_window;
-  QApplication *_qt_app;
-  std::thread _qt_thread;
+  // Max time to wait for Device to press target
+  static constexpr int MAX_WAIT_MS = 2000;
+
   std::promise<TARGET_T> _button_released_promise;
   std::future<TARGET_T> _button_released_future;
+  std::unique_ptr<TTS> _tts;
 
-  void SetUp() override
+  // void SetUp() override
+  static void SetUpTestSuite()
   {
 
     // Check if input device path is set
@@ -59,6 +71,13 @@ class HilTest : public ::testing::Test
 
     // Wait for Qt to initialize
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+
+  void SetUp() override
+  {
+
+    // Set up the TTS system
+    _tts = std::make_unique<TTS>();
     // Set up the promise and future for button release
     _button_released_future = _button_released_promise.get_future();
 
@@ -70,7 +89,7 @@ class HilTest : public ::testing::Test
   }
 
   // This runs after each TEST_F
-  void TearDown() override
+  static void TearDownTestSuite()
   {
     // Shut down the Qt application from it's own thread
     if (_main_window)
@@ -101,9 +120,41 @@ class HilTest : public ::testing::Test
   }
 };
 
-TEST_F(HilTest, CaffeLattePressed)
+// Helper to generate all valid targets
+std::vector<TARGET_T> get_all_targets()
 {
-  ASSERT_TRUE(expectButtonReleased(TARGET_CAFFE_LATTE, 20000));
+  std::vector<TARGET_T> targets;
+  for (int i = 0; i < TARGET_COUNT; ++i)
+  {
+    targets.push_back(static_cast<TARGET_T>(i));
+  }
+  return targets;
+}
+
+// Custom name generator for parameterized tests
+std::string TargetNameGenerator(const ::testing::TestParamInfo<TARGET_T> &info)
+{
+  const char *name = touch_targets[info.param].name;
+  std::string s(name);
+  // Replace spaces and special chars for valid C++ identifiers
+  std::replace(s.begin(), s.end(), ' ', '_');
+  std::replace(s.begin(), s.end(), '-', '_');
+  std::replace(s.begin(), s.end(), '.', '_');
+  return s;
+}
+
+// Parameterized test for all targets
+class TargetButtonPressed : public HilTest, public ::testing::WithParamInterface<TARGET_T>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(AllTargets, TargetButtonPressed, ::testing::ValuesIn(get_all_targets()), TargetNameGenerator);
+
+TEST_P(TargetButtonPressed, Pressed)
+{
+  const TARGET_T target = GetParam();
+  _tts->say(std::string("Frankie! Make me a ") + touch_targets[target].name + ".");
+  ASSERT_TRUE(expectButtonReleased(target, MAX_WAIT_MS)) << "Failed to press target: " << touch_targets[target].name;
 }
 
 int main(int argc, char **argv)
