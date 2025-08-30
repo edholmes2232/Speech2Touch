@@ -15,6 +15,9 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 # Add the harness GUI library subdirectory
 add_subdirectory(../harness_gui harness_gui_build)
 
+# Add the TTS library subdirectory
+add_subdirectory(../tts tts_build)
+
 # Download and unpack googletest at configure time
 include(FetchContent)
 FetchContent_Declare(
@@ -40,6 +43,7 @@ target_link_libraries(
   GTest::gtest_main
   harness_gui_lib
   Boost::program_options
+  tts_lib
 )
 
 include(GoogleTest)
