@@ -6,36 +6,41 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-		    "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
             "cacheVariables": {
             }
         },
         {
-            "name": "Debug",
+            "name": "firmware-base",
+            "hidden": true,
             "inherits": "default",
+            "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake"
+        },
+        {
+            "name": "Debug",
+            "inherits": "firmware-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
-            "name": "RelWithDebInfo",
-            "inherits": "default",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-            }
-        },
-        {
             "name": "Release",
-            "inherits": "default",
+            "inherits": "firmware-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
-            "name": "MinSizeRel",
+            "name": "RelWithDebInfo",
+            "inherits": "firmware-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "Test",
             "inherits": "default",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "MinSizeRel"
+                "CMAKE_BUILD_TYPE": "Test"
             }
         }
     ],
@@ -45,16 +50,16 @@
             "configurePreset": "Debug"
         },
         {
-            "name": "RelWithDebInfo",
-            "configurePreset": "RelWithDebInfo"
-        },
-        {
             "name": "Release",
             "configurePreset": "Release"
         },
         {
-            "name": "MinSizeRel",
-            "configurePreset": "MinSizeRel"
+            "name": "RelWithDebInfo",
+            "configurePreset": "RelWithDebInfo"
+        },
+        {
+            "name": "Test",
+            "configurePreset": "Test"
         }
     ]
 }

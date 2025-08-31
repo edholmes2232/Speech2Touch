@@ -25,7 +25,7 @@ CommentPragmas: '^\\s*\\/\\*\\*\\!'
 FixNamespaceComments: false
 IncludeBlocks: Regroup
 IndentCaseLabels: false
-IndentWidth: 4
+IndentWidth: 2
 IndentExternBlock: NoIndent
 NamespaceIndentation: None
 PenaltyReturnTypeOnItsOwnLine: 100
