@@ -16,6 +16,8 @@ Makefile
 *.ninja_deps
 compile_commands.json
 
+.mxproject
+
 # Executables and object files
 *.elf
 *.bin

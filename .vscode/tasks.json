@@ -1,62 +1,224 @@
 {
-    "version": "2.0.0",
-    "windows": {
-        "options": {
-            "shell": {
-                "executable": "cmd.exe",
-                "args": ["/d", "/c"]
-            }
-        }
+  "version": "2.0.0",
+  "windows": {
+    "options": {
+      "shell": {
+        "executable": "cmd.exe",
+        "args": [
+          "/d",
+          "/c"
+        ]
+      }
+    }
+  },
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "CubeProg: Flash project (SWD)",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--connect",
+        "port=swd",
+        "--download",
+        "${command:cmake.launchTargetPath}",
+        "-hardRst",
+        "-rst",
+        "--start"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     },
-    "tasks": [
-        {
-            "type": "shell",
-            "label": "CubeProg: Flash project (SWD)",
-            "command": "STM32_Programmer_CLI",
-            "args": [
-                "--connect",
-                "port=swd",
-                "--download",
-                "${command:cmake.launchTargetPath}",
-                // Let CMake extension decide executable: "${command:cmake.launchTargetPath}",
-                "-hardRst", // Hardware reset - if rst pin is connected
-                "-rst", // Software reset (backup)
-                "--start" // Start execution
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build + Flash",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "CMake: clean rebuild",
-                "CubeProg: Flash project (SWD)",
-            ]
-        },
-                {
-            "type": "cmake",
-            "label": "CMake: clean rebuild",
-            "command": "cleanRebuild",
-            "targets": [
-                "all"
-            ],
-            "preset": "${command:cmake.activeBuildPresetName}",
-            "group": "build",
-            "problemMatcher": [],
-            "detail": "CMake template clean rebuild task"
-        },
-        {
-            "type": "shell",
-            "label": "CubeProg: List all available communication interfaces",
-            "command": "STM32_Programmer_CLI",
-            "args": ["--list"],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        }
-    ]
+    {
+      "label": "Build + Flash",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: clean rebuild",
+        "CubeProg: Flash project (SWD)"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "CubeProg: List all available communication interfaces",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--list"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake Configure Debug",
+      "type": "shell",
+      "command": "cmake --preset Debug",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure Release",
+      "type": "shell",
+      "command": "cmake --preset Release",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure RelWithDebInfo",
+      "type": "shell",
+      "command": "cmake --preset RelWithDebInfo",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure MinSizeRel",
+      "type": "shell",
+      "command": "cmake --preset MinSizeRel",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Build Firmware",
+      "type": "shell",
+      "command": "cmake --build ${workspaceFolder}/build/Debug --target all -j 10 --",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure Test",
+      "type": "shell",
+      "command": "cmake --preset Test",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Configure TestWithQt",
+      "type": "shell",
+      "command": "cmake --preset TestWithQt",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Build Tests",
+      "type": "shell",
+      "command": "cmake --build ${workspaceFolder}/build/Test --target test_full_loop -j 10",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "CMake Run Tests",
+      "type": "shell",
+      "command": "ctest --test-dir ${workspaceFolder}/build/Test",
+      "options": {
+        "cwd": "${workspaceFolder}/build/Test"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Configure + Build + Run Tests",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake Configure Test",
+        "CMake Build Tests",
+        "CMake Run Tests"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "CubeProg: Flash project (JTAG)",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--connect",
+        "port=jtag",
+        "--download",
+        "${command:cmake.launchTargetPath}",
+        "-hardRst",
+        "-rst",
+        "--start"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Flash (JTAG)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: clean rebuild",
+        "CubeProg: Flash project (JTAG)"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "CubeProg: Flash project (Serial)",
+      "command": "STM32_Programmer_CLI",
+      "args": [
+        "--connect",
+        "port=serial",
+        "--download",
+        "${command:cmake.launchTargetPath}",
+        "-hardRst",
+        "-rst",
+        "--start"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Flash (Serial)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: clean rebuild",
+        "CubeProg: Flash project (Serial)"
+      ]
+    }
+  ]
 }
