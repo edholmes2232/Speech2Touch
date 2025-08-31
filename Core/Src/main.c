@@ -19,49 +19,28 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#include "app_threadx.h"
+#include "dma.h"
 #include "gpio.h"
 #include "memorymap.h"
-#include "usb_device.h"
+#include "sai.h"
+#include "usart.h"
+#include "usb.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "led.h"
+#include "log.h"
+#include "speech.h"
+#include "touch.h"
+#include "touch_targets.h"
+#include "ux_api.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct
-{
-    uint8_t reportId; // Report ID = 0x03 (3)
-                      // Collection: CA:TouchScreen CP:Finger
-    uint8_t DIG_TouchScreenFingerTipSwitch : 1; // Usage 0x000D0042: Tip Switch, Value = 0 to 1
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t DIG_TouchScreenFingerInRange : 1; // Usage 0x000D0032: In Range, Value = 0 to 1
-    uint8_t DIG_TouchScreenFingerConfidence : 1; // Usage 0x000D0047: Confidence, Value = 0 to 1
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint8_t : 1; // Pad
-    uint16_t GD_TouchScreenFingerX; // Usage 0x00010030: X, Value = 0 to 32767
-    uint16_t GD_TouchScreenFingerY; // Usage 0x00010031: Y, Value = 0 to 32767
-    uint16_t DIG_TouchScreenFingerWidth; // Usage 0x000D0048: Width, Value = 0 to 32767
-                                         // Usage 0x000D0049 Height, Value = 0 to 32767 <-- Ignored: REPORT_COUNT (1) is
-                                         // too small
-    uint16_t pad_8; // Pad
-    uint16_t DIG_TouchScreenFingerContactIdentifier[2]; // Usage 0x000D0051: Contact Identifier, Value = 0 to 32767
-} TouchScreenReport_t;
-
-// typedef struct
-// {
-//     uint8_t reportId; // bit 0 = finger up/down, bit 1 = finger in range
-//     uint8_t
 
 /* USER CODE END PTD */
 
@@ -77,47 +56,41 @@ typedef struct
 
 /* Private variables ---------------------------------------------------------*/
 
-COM_InitTypeDef BspCOMInit;
-
 /* USER CODE BEGIN PV */
-static volatile uint8_t _usb_connected = 0;
-
-TouchScreenReport_t touch_screen_report;
-extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
-extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
+// extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
 
-void USB_ConnectionCallback(uint8_t state)
+#ifndef AUDIO_OVER_USART
+int _write(int le, char *ptr, int len)
 {
-    _usb_connected = state;
-    if (state)
-    {
-        BSP_LED_On(LED_GREEN);
-    }
-    else
-    {
-        BSP_LED_Off(LED_GREEN);
-    }
+  (void)le; // Unused parameter
+  HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+  return len;
 }
-
-// int _write(int le, char *ptr, int len)
-// {
-//     // This function is called by printf to send data to the UART
-//     // It sends 'len' bytes from 'ptr' to the UART
-//     HAL_UART_Transmit(COM1_UART, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-//     // Return the number of bytes written
-//     return len;
-// }
+#endif
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+#include "touch_mapper.h"
+// Button callback
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  log_info("Button pressed: %d", GPIO_Pin);
+  if (GPIO_Pin == SW1_Pin)
+  {
+    LED_SetState(LED_2, 1);
+
+    TOUCHMAPPER_ResetState();
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -128,123 +101,93 @@ void USB_ConnectionCallback(uint8_t state)
 int main(void)
 {
 
-    /* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
+  /* USER CODE END 1 */
 
-    /* USER CODE END 1 */
+  /* MCU Configuration--------------------------------------------------------*/
 
-    /* MCU Configuration--------------------------------------------------------*/
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-    HAL_Init();
+  /* USER CODE BEGIN Init */
 
-    /* USER CODE BEGIN Init */
+  /* USER CODE END Init */
 
-    /* USER CODE END Init */
+  /* Configure the system clock */
+  SystemClock_Config();
 
-    /* Configure the system clock */
-    SystemClock_Config();
+  /* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
 
-    /* Configure the peripherals common clocks */
-    PeriphCommonClock_Config();
+  /* USER CODE BEGIN SysInit */
 
-    /* USER CODE BEGIN SysInit */
+  /* USER CODE END SysInit */
 
-    /* USER CODE END SysInit */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_SAI1_Init();
+  MX_USART1_UART_Init();
+  MX_USB_PCD_Init();
+  /* USER CODE BEGIN 2 */
 
-    /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    MX_USB_Device_Init();
-    /* USER CODE BEGIN 2 */
+  // Setup SW1 for interrupt
+  log_info("Startup");
+  /* USER CODE END 2 */
 
-    /* USER CODE END 2 */
+  MX_ThreadX_Init();
 
-    /* Initialize leds */
-    BSP_LED_Init(LED_BLUE);
-    BSP_LED_Init(LED_GREEN);
-    BSP_LED_Init(LED_RED);
+  /* We should never get here as control is now taken by the scheduler */
 
-    /* Initialize User push-button without interrupt mode. */
-    BSP_PB_Init(BUTTON_SW1, BUTTON_MODE_GPIO);
-    BSP_PB_Init(BUTTON_SW2, BUTTON_MODE_GPIO);
-    BSP_PB_Init(BUTTON_SW3, BUTTON_MODE_GPIO);
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 
-    /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
-    BspCOMInit.BaudRate = 115200;
-    BspCOMInit.WordLength = COM_WORDLENGTH_8B;
-    BspCOMInit.StopBits = COM_STOPBITS_1;
-    BspCOMInit.Parity = COM_PARITY_NONE;
-    BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+  // SPEECH_Init();
+
+  while (1)
+  {
+    /*
+    // Wait for button press, then send a touch report
+    if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
     {
-        Error_Handler();
+      // Light up LED
+      LED_SetState(LED_2, 1);
+      HAL_Delay(10); // Debounce delay
+
+      static uint8_t counter = 0;
+      counter = (counter + 10) % 100;
+
+      // Map the 0-99 counter to our 0-10000 coordinate space
+      touch_report.x = counter * 100;
+      touch_report.y = counter * 100;
+
+      printf("Button pressed, sending tap at: X=%u, Y=%u\n", touch_report.x, touch_report.y);
+
+      // --- Send "Touch Down" Report ---
+      touch_report.state = 0x01; // Set Tip Switch bit to 1
+      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
+
+      HAL_Delay(30); // Host needs a moment to process the "down" state before the "up"
+
+      // --- Send "Touch Up" Report ---
+      touch_report.state = 0x00; // Set Tip Switch bit to 0
+      // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_report, sizeof(touch_report));
+
+      // Wait for the button to be physically released before allowing another press
+      while (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
+        ;
+
+      LED_SetState(LED_2, 0);
+      HAL_Delay(50); // Debounce the release
     }
+*/
+    // SPEECH_Process();
 
-    /* Infinite loop */
-    /* USER CODE BEGIN WHILE */
-    printf("Waiting for USB connection...\r\n");
-    // while (_usb_connected == 0)
-    {
-        /* Wait for USB connection */
-        HAL_Delay(100);
-    }
-    printf("USB connected!\n");
+    /* USER CODE END WHILE */
 
-    touch_screen_report.reportId = 0x03;
-    touch_screen_report.DIG_TouchScreenFingerTipSwitch = 1;
-    touch_screen_report.DIG_TouchScreenFingerInRange = 1;
-    touch_screen_report.DIG_TouchScreenFingerConfidence = 1;
-    touch_screen_report.DIG_TouchScreenFingerContactIdentifier[0] = 1;
-    touch_screen_report.GD_TouchScreenFingerX = 100;
-    touch_screen_report.GD_TouchScreenFingerY = 100;
-    // touch_screen_report.DIG_TouchScreenContactCount = 1;
-
-    while (1)
-    {
-        // Wait for button press, then send a touch report
-        if ((BSP_PB_GetState(BUTTON_SW1) == GPIO_PIN_RESET) || (BSP_PB_GetState(BUTTON_SW2) == GPIO_PIN_RESET)
-            || (BSP_PB_GetState(BUTTON_SW3) == GPIO_PIN_RESET))
-        {
-            // Light up LED
-            BSP_LED_On(LED_BLUE);
-            HAL_Delay(10); // Debounce delay
-            BSP_LED_Off(LED_BLUE);
-
-            static uint8_t counter = 0;
-            counter = (counter + 10) % 100; // Increment counter by 10, wrap around at 100
-
-            // Send the touch report
-            // USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&touch_screen_report, sizeof(touch_screen_report));
-            uint8_t x_coord_percentage = counter;
-            uint8_t y_coord_percentage = counter;
-
-            printf("Button pressed, sending touch report: X=%d%%, Y=%d%%\n", x_coord_percentage, y_coord_percentage);
-
-            uint8_t buff[5];
-            // Report ID
-            buff[0] = 0x03;
-            // LSB of X coordinate percentage * 100 (0... 10000)
-            buff[1] = (x_coord_percentage * 100) & 0xFF; // X coordinate LSB
-            // MSB of X coordinate percentage * 100 (0... 10000)
-            buff[2] = (x_coord_percentage * 100) >> 8; //
-            // LSB of Y coordinate percentage * 100 (0... 10000)
-            buff[3] = (y_coord_percentage * 100) & 0xFF; // Y coordinate LSB
-            // MSB of Y coordinate percentage * 100 (0... 10000)
-            buff[4] = (y_coord_percentage * 100) >> 8; // Y coordinate MSB
-            USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
-
-            HAL_Delay(100); // Debounce delay
-            buff[0] = 0x02;
-            USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, buff, sizeof(buff));
-            HAL_Delay(1000); // Debounce delay
-            // Turn off LED
-            // BSP_LED_Off(LED_BLUE);
-        }
-
-        /* USER CODE END WHILE */
-
-        /* USER CODE BEGIN 3 */
-    }
-    /* USER CODE END 3 */
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -253,54 +196,50 @@ int main(void)
  */
 void SystemClock_Config(void)
 {
-    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-    /** Configure the main internal regulator output voltage
-     */
-    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  /** Configure the main internal regulator output voltage
+   */
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-    /** Initializes the RCC Oscillators according to the specified parameters
-     * in the RCC_OscInitTypeDef structure.
-     */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_LSE | RCC_OSCILLATORTYPE_MSI;
-    RCC_OscInitStruct.LSEState = RCC_LSE_OFF;
-    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-    RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-    RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-    RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
-    RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-    RCC_OscInitStruct.PLL.PLLN = 32;
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-    {
-        Error_Handler();
-    }
+  /** Initializes the RCC Oscillators according to the specified parameters
+   * in the RCC_OscInitTypeDef structure.
+   */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48 | RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_10;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV5;
+  RCC_OscInitStruct.PLL.PLLN = 40;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-    /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
-     */
-    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4 | RCC_CLOCKTYPE_HCLK2 | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                                  | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-    RCC_ClkInitStruct.AHBCLK2Divider = RCC_SYSCLK_DIV2;
-    RCC_ClkInitStruct.AHBCLK4Divider = RCC_SYSCLK_DIV1;
+  /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
+   */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4 | RCC_CLOCKTYPE_HCLK2 | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.AHBCLK2Divider = RCC_SYSCLK_DIV2;
+  RCC_ClkInitStruct.AHBCLK4Divider = RCC_SYSCLK_DIV1;
 
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
-    {
-        Error_Handler();
-    }
-
-    /** Enable MSI Auto calibration
-     */
-    HAL_RCCEx_EnableMSIPLLMode();
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -309,21 +248,21 @@ void SystemClock_Config(void)
  */
 void PeriphCommonClock_Config(void)
 {
-    RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
-    /** Initializes the peripherals clock
-     */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS;
-    PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSI;
-    PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE0;
+  /** Initializes the peripherals clock
+   */
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS;
+  PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSI;
+  PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE1;
 
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* USER CODE BEGIN Smps */
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN Smps */
 
-    /* USER CODE END Smps */
+  /* USER CODE END Smps */
 }
 
 /* USER CODE BEGIN 4 */
@@ -331,18 +270,40 @@ void PeriphCommonClock_Config(void)
 /* USER CODE END 4 */
 
 /**
+ * @brief  Period elapsed callback in non blocking mode
+ * @note   This function is called  when TIM17 interrupt took place, inside
+ * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+ * a global variable "uwTick" used as application time base.
+ * @param  htim : TIM handle
+ * @retval None
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM17)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
+/**
  * @brief  This function is executed in case of error occurrence.
  * @retval None
  */
 void Error_Handler(void)
 {
-    /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
-    __disable_irq();
-    while (1)
-    {
-    }
-    /* USER CODE END Error_Handler_Debug */
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef USE_FULL_ASSERT
@@ -355,9 +316,9 @@ void Error_Handler(void)
  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-    /* USER CODE BEGIN 6 */
-    /* User can add his own implementation to report the file name and line number,
-       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-    /* USER CODE END 6 */
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
