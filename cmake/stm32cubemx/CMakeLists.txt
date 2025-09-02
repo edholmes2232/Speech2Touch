@@ -41,7 +41,6 @@ set(MX_Application_Src
     ${CMAKE_SOURCE_DIR}/Core/Src/dma.c
     ${CMAKE_SOURCE_DIR}/Core/Src/memorymap.c
     ${CMAKE_SOURCE_DIR}/Core/Src/sai.c
-    ${CMAKE_SOURCE_DIR}/Core/Src/usart.c
     ${CMAKE_SOURCE_DIR}/Core/Src/usb.c
     ${CMAKE_SOURCE_DIR}/Core/Src/stm32wbxx_it.c
     ${CMAKE_SOURCE_DIR}/Core/Src/stm32wbxx_hal_msp.c
@@ -373,7 +372,9 @@ set(MX_LINK_DIRS
 # Project static libraries
 set(MX_LINK_LIBS 
     STM32_Drivers
-    USBX	ThreadX	
+    USBX
+	ThreadX
+	
 )
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)
