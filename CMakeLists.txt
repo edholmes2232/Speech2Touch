@@ -57,7 +57,14 @@ else()
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user defined library search paths
     )
-    
+
+    # Segger RTT sources
+    set(SEGGER_RTT_SOURCES
+        ${CMAKE_SOURCE_DIR}/Core/Lib/segger-rtt/SEGGER_RTT.c
+        ${CMAKE_SOURCE_DIR}/Core/Lib/segger-rtt/SEGGER_RTT_printf.c
+        # ${CMAKE_SOURCE_DIR}/Core/Lib/segger-rtt/SEGGER_RTT_Syscalls_GCC.c
+    )
+
     # Add sources to executable
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user sources here
@@ -68,6 +75,7 @@ else()
         ${CMAKE_SOURCE_DIR}/Core/Src/touch_targets.c
         ${CMAKE_SOURCE_DIR}/Core/Src/touch_mapper.c
         ${CMAKE_SOURCE_DIR}/Core/Lib/log/log.c
+        ${SEGGER_RTT_SOURCES}
     )
     
     # Add include paths
@@ -75,6 +83,7 @@ else()
         # Add user defined include paths
         ${CMAKE_SOURCE_DIR}/Core/Lib/picovoice/include
         ${CMAKE_SOURCE_DIR}/Core/Lib/log
+        ${CMAKE_SOURCE_DIR}/Core/Lib/segger-rtt
     )
     
     # Add project symbols (macros)
@@ -84,7 +93,7 @@ else()
         # Send AUDIO over USART
         # AUDIO_OVER_USART
         # Log colour output
-        LOG_USE_COLOR
+        # LOG_USE_COLOR # not supported for RTT
     )
     
     # Add linked libraries

@@ -28,6 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "SEGGER_RTT.h"
 #include "led.h"
 #include "log.h"
 #include "speech.h"
@@ -67,7 +68,7 @@ void PeriphCommonClock_Config(void);
 int _write(int le, char *ptr, int len)
 {
   (void)le; // Unused parameter
-  // HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+  SEGGER_RTT_Write(0, ptr, len);
   return len;
 }
 #endif

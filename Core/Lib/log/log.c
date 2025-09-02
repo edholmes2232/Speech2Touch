@@ -51,10 +51,10 @@ static void stdout_callback(log_Event *ev)
 #ifdef LOG_USE_COLOR
   fprintf(ev->udata, "%s%-5s\x1b[0m \x1b[90m%s \x1b[0m ", level_colors[ev->level], level_strings[ev->level], ev->func);
 #else
-  fprintf(ev->udata, "%s %-5s %s:%d: ", buf, level_strings[ev->level], ev->func);
+  fprintf(ev->udata, "%s %-5s: ", level_strings[ev->level], ev->func);
 #endif
   vfprintf(ev->udata, ev->fmt, ev->ap);
-  fprintf(ev->udata, "\n");
+  fprintf(ev->udata, "\r\n");
   fflush(ev->udata);
 }
 
