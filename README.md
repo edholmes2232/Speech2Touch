@@ -16,7 +16,7 @@ The INMP441 MEMS microphone is used for voice input.
 
 ## ☕️ Demo
 
-Coming soon...
+[![Video Demo](https://img.youtube.com/vi/FJQtgSHE-vs/0.jpg)](https://www.youtube.com/shorts/FJQtgSHE-vs)
 
 ---
 
