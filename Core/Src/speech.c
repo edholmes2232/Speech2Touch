@@ -8,7 +8,7 @@
 #include "touch_mapper.h"
 #include "touch_targets.h"
 #include "tx_api.h"
-#include "usart.h"
+// #include "usart.h"
 
 #include <stdbool.h>
 #include <stdint.h>

@@ -59,6 +59,23 @@
       ],
       /* If you use external loader, add additional arguments */
       //"serverArgs": ["--extload", "path/to/ext/loader.stldr"],
+    },
+    {
+      "name": "Build & Debug Microcontroller - J-Link (STM32WB55CGUx)",
+      "cwd": "${workspaceFolder}",
+      "type": "cortex-debug",
+      "executable": "${workspaceFolder}/build/Debug/Speech2Touch.elf",
+      "request": "launch",
+      "servertype": "jlink",
+      "device": "STM32WB55CGUx",
+      "interface": "swd",
+      "serialNumber": "", // Set J-Link serial if needed
+      "runToEntryPoint": "main",
+      "svdFile": "${config:STM32VSCodeExtension.cubeCLT.path}/STMicroelectronics_CMSIS_SVD/STM32WB55_CM4.svd",
+      "jlinkscript": "", // Optional: path to JLink script
+      "armToolchainPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin",
+      "gdbPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+      "preLaunchTask": "CMake Build Firmware"
     }
   ]
 }

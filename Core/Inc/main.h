@@ -58,37 +58,25 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SYS_WKUP2_Pin GPIO_PIN_13
-#define SYS_WKUP2_GPIO_Port GPIOC
-#define RCC_OSC32_IN_Pin GPIO_PIN_14
-#define RCC_OSC32_IN_GPIO_Port GPIOC
-#define RCC_OSC32_OUT_Pin GPIO_PIN_15
-#define RCC_OSC32_OUT_GPIO_Port GPIOC
-#define SW1_Pin GPIO_PIN_4
-#define SW1_GPIO_Port GPIOC
-#define SW1_EXTI_IRQn EXTI4_IRQn
+#define STATUS_LED_Pin GPIO_PIN_8
+#define STATUS_LED_GPIO_Port GPIOB
+#define LD1_Pin GPIO_PIN_4
+#define LD1_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_0
 #define LD2_GPIO_Port GPIOB
 #define LD3_Pin GPIO_PIN_1
 #define LD3_GPIO_Port GPIOB
+#define SW1_Pin GPIO_PIN_10
+#define SW1_GPIO_Port GPIOA
+#define SW1_EXTI_IRQn EXTI15_10_IRQn
 #define USB_DM_Pin GPIO_PIN_11
 #define USB_DM_GPIO_Port GPIOA
 #define USB_DP_Pin GPIO_PIN_12
 #define USB_DP_GPIO_Port GPIOA
-#define JTMS_Pin GPIO_PIN_13
-#define JTMS_GPIO_Port GPIOA
-#define JTCK_Pin GPIO_PIN_14
-#define JTCK_GPIO_Port GPIOA
-#define SW2_Pin GPIO_PIN_0
-#define SW2_GPIO_Port GPIOD
-#define SW2_EXTI_IRQn EXTI0_IRQn
-#define SW3_Pin GPIO_PIN_1
-#define SW3_GPIO_Port GPIOD
-#define SW3_EXTI_IRQn EXTI1_IRQn
-#define JTDO_Pin GPIO_PIN_3
-#define JTDO_GPIO_Port GPIOB
-#define LD1_Pin GPIO_PIN_5
-#define LD1_GPIO_Port GPIOB
+#define SWDIO_Pin GPIO_PIN_13
+#define SWDIO_GPIO_Port GPIOA
+#define SWCLK_Pin GPIO_PIN_14
+#define SWCLK_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

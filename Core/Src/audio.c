@@ -79,7 +79,7 @@ void AUDIO_Start(void)
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
   }
-  HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
+  HAL_SAI_Receive_DMA(&hsai_BlockB1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
 }
 
 // A helper macro for clamping
