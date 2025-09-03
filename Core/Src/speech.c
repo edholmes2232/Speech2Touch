@@ -1,3 +1,6 @@
+#include "speech.h"
+
+#include "SEGGER_RTT.h"
 #include "audio.h"
 #include "led.h"
 #include "log.h"
@@ -8,7 +11,6 @@
 #include "touch_mapper.h"
 #include "touch_targets.h"
 #include "tx_api.h"
-// #include "usart.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -253,7 +255,7 @@ static void SPEECH_Process(ULONG thread_input)
     buffer = NULL;
 
 #ifdef AUDIO_OVER_USART
-    HAL_UART_Transmit(&huart1, (uint8_t *)speech_buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
+    // HAL_UART_Transmit(&huart1, (uint8_t *)speech_buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
 #else
 
     const pv_status_t status = pv_picovoice_process(_handle, speech_buffer);
@@ -264,6 +266,7 @@ static void SPEECH_Process(ULONG thread_input)
 #endif
 
     uint32_t end = HAL_GetTick();
+
     // if ((end - start) > 19)
     // {
     //   log_trace("Took %lu ms", end - start);
