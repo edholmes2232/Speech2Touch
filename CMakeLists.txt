@@ -90,8 +90,8 @@ else()
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user defined symbols
         __PV_LANGUAGE_ENGLISH__
-        # Send AUDIO over USART
-        # AUDIO_OVER_USART
+        # Send AUDIO over RTT
+        # AUDIO_OVER_RTT
         # Log colour output
         # LOG_USE_COLOR # not supported for RTT
     )

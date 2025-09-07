@@ -1,8 +1,11 @@
 #include "audio.h"
 
+#include "led.h"
 #include "log.h"
+#include "main.h"
 #include "picovoice.h"
 #include "sai.h"
+#include "stm32wbxx_hal_def.h"
 #include "stm32wbxx_hal_sai.h"
 #include "tx_api.h"
 
@@ -137,13 +140,13 @@ void dmaCallbackHandler(int32_t *dma_buffer)
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hsai)
 {
   (void)hsai;
-  dmaCallbackHandler(&_dma_buffer[0]);
+  dmaCallbackHandler(&_dma_buffer[PICOVOICE_FRAME_SIZE]);
 }
 
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
   (void)hsai;
-  dmaCallbackHandler(&_dma_buffer[PICOVOICE_FRAME_SIZE]);
+  dmaCallbackHandler(&_dma_buffer[0]);
 }
 
 uint8_t AUDIO_GetBuffer(int16_t **buffer)

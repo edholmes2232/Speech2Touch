@@ -62,6 +62,8 @@ void Error_Handler(void);
 #define STATUS_LED_GPIO_Port GPIOB
 #define LD1_Pin GPIO_PIN_4
 #define LD1_GPIO_Port GPIOA
+#define SAI_SD_Pin GPIO_PIN_5
+#define SAI_SD_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_0
 #define LD2_GPIO_Port GPIOB
 #define LD3_Pin GPIO_PIN_1
@@ -77,6 +79,10 @@ void Error_Handler(void);
 #define SWDIO_GPIO_Port GPIOA
 #define SWCLK_Pin GPIO_PIN_14
 #define SWCLK_GPIO_Port GPIOA
+#define SAI_SCK_Pin GPIO_PIN_3
+#define SAI_SCK_GPIO_Port GPIOB
+#define SAI_FS_Pin GPIO_PIN_6
+#define SAI_FS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

@@ -26,9 +26,9 @@
 #include "sai.h"
 #include "usb.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "SEGGER_RTT.h"
 #include "led.h"
 #include "log.h"
 #include "speech.h"
@@ -64,7 +64,9 @@ void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
 // extern uint8_t USBD_CUSTOM_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t len);
 
-#ifndef AUDIO_OVER_USART
+#ifndef AUDIO_OVER_RTT
+#include "SEGGER_RTT.h"
+
 int _write(int le, char *ptr, int len)
 {
   (void)le; // Unused parameter
@@ -83,7 +85,7 @@ int _write(int le, char *ptr, int len)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   log_info("Button pressed: %d", GPIO_Pin);
-  if (GPIO_Pin == SW1_Pin)
+  // if (GPIO_Pin ==
   {
     LED_SetState(LED_2, 1);
 
@@ -236,10 +238,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
-  /** Enables the Clock Security System
-   */
-  HAL_RCC_EnableCSS();
 }
 
 /**

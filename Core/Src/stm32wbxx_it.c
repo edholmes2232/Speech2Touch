@@ -75,7 +75,6 @@ void NMI_Handler(void)
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
 
   /* USER CODE END NonMaskableInt_IRQn 0 */
-  HAL_RCC_NMI_IRQHandler();
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
    while (1)
   {
@@ -164,20 +163,6 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles DMA1 channel1 global interrupt.
-  */
-void DMA1_Channel1_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
-
-  /* USER CODE END DMA1_Channel1_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_sai1_b);
-  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
-
-  /* USER CODE END DMA1_Channel1_IRQn 1 */
-}
-
-/**
   * @brief This function handles USB low priority interrupt, USB wake-up interrupt through EXTI line 28.
   */
 void USB_LP_IRQHandler(void)
@@ -231,6 +216,20 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 channel1 global interrupt.
+  */
+void DMA2_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA2_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_sai1_b);
+  /* USER CODE BEGIN DMA2_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA2_Channel1_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

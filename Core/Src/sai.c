@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * File Name          : SAI.c
-  * Description        : This file provides code for the configuration
-  *                      of the SAI instances.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : SAI.c
+ * Description        : This file provides code for the configuration
+ *                      of the SAI instances.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -43,10 +43,10 @@ void MX_SAI1_Init(void)
   hsai_BlockB1.Instance = SAI1_Block_B;
   hsai_BlockB1.Init.AudioMode = SAI_MODEMASTER_RX;
   hsai_BlockB1.Init.Synchro = SAI_ASYNCHRONOUS;
-  hsai_BlockB1.Init.OutputDrive = SAI_OUTPUTDRIVE_DISABLE;
+  hsai_BlockB1.Init.OutputDrive = SAI_OUTPUTDRIVE_ENABLE;
   hsai_BlockB1.Init.NoDivider = SAI_MASTERDIVIDER_ENABLE;
   hsai_BlockB1.Init.MckOverSampling = SAI_MCK_OVERSAMPLING_DISABLE;
-  hsai_BlockB1.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_EMPTY;
+  hsai_BlockB1.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_HF;
   hsai_BlockB1.Init.AudioFrequency = SAI_AUDIO_FREQUENCY_16K;
   hsai_BlockB1.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
   hsai_BlockB1.Init.MonoStereoMode = SAI_MONOMODE;
@@ -101,14 +101,14 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* saiHandle)
     PB3     ------> SAI1_SCK_B
     PB6     ------> SAI1_FS_B
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    GPIO_InitStruct.Pin = SAI_SD_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_SAI1;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(SAI_SD_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_6;
+    GPIO_InitStruct.Pin = SAI_SCK_Pin|SAI_FS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -117,7 +117,7 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* saiHandle)
 
     /* Peripheral DMA init*/
 
-    hdma_sai1_b.Instance = DMA1_Channel1;
+    hdma_sai1_b.Instance = DMA2_Channel1;
     hdma_sai1_b.Init.Request = DMA_REQUEST_SAI1_B;
     hdma_sai1_b.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_sai1_b.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -157,9 +157,9 @@ void HAL_SAI_MspDeInit(SAI_HandleTypeDef* saiHandle)
     PB3     ------> SAI1_SCK_B
     PB6     ------> SAI1_FS_B
     */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_5);
+    HAL_GPIO_DeInit(SAI_SD_GPIO_Port, SAI_SD_Pin);
 
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3|GPIO_PIN_6);
+    HAL_GPIO_DeInit(GPIOB, SAI_SCK_Pin|SAI_FS_Pin);
 
     HAL_DMA_DeInit(saiHandle->hdmarx);
     HAL_DMA_DeInit(saiHandle->hdmatx);
