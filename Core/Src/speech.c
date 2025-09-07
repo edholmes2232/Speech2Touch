@@ -4,6 +4,7 @@
 #include "audio.h"
 #include "led.h"
 #include "log.h"
+#include "pv_access_key.h"
 #include "pv_picovoice.h"
 #include "pv_porcupine_params.h"
 #include "pv_rhino_params.h"
@@ -20,7 +21,11 @@
 
 //! Picovoice specific defines
 #define MEMORY_BUFFER_SIZE (70 * 1024)
-static const char *ACCESS_KEY = "picovoice_access_key==";
+
+#ifndef PV_ACCESS_KEY
+#error "ACCESS_KEY must be defined in pv_access_key.h"
+#endif
+static const char *_access_key = PV_ACCESS_KEY;
 
 //! Picovoice statics
 static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
@@ -117,11 +122,6 @@ static void inferenceCallback(pv_inference_t *inference)
     }
   }
   printf("}\n\n");
-  // for (int32_t i = 0; i < 10; i++)
-  // {
-  //   LED_SetState(LED_1, i % 2);
-  //   HAL_Delay(30);
-  // }
 
   pv_inference_delete(inference);
 }
@@ -140,7 +140,7 @@ uint8_t SPEECH_Init(void *memory_ptr)
   int32_t message_stack_depth = 0;
   pv_status_t error_status;
 
-  pv_status_t status = pv_picovoice_init(ACCESS_KEY, // access key
+  pv_status_t status = pv_picovoice_init(_access_key, // access key
                                          MEMORY_BUFFER_SIZE, // memory size
                                          _memory_buffer, // memory buffer
                                          sizeof(KEYWORD_ARRAY), // keyword model size
