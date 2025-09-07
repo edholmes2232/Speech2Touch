@@ -47,6 +47,7 @@ set(MX_Application_Src
     ${CMAKE_SOURCE_DIR}/Core/Src/stm32wbxx_hal_timebase_tim.c
     ${CMAKE_SOURCE_DIR}/Core/Src/sysmem.c
     ${CMAKE_SOURCE_DIR}/Core/Src/syscalls.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/tim.c
     ${CMAKE_SOURCE_DIR}/startup_stm32wb55xx_cm4.s
 )
 

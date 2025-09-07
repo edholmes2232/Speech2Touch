@@ -24,6 +24,7 @@
 #include "gpio.h"
 #include "memorymap.h"
 #include "sai.h"
+#include "tim.h"
 #include "usb.h"
 
 
@@ -129,6 +130,7 @@ int main(void)
   MX_DMA_Init();
   MX_SAI1_Init();
   MX_USB_PCD_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
 
   // Setup SW1 for interrupt
@@ -285,6 +287,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+  else if (htim->Instance == TIM16)
+  {
+    LED_TimerCallback(htim);
+  }
 
   /* USER CODE END Callback 1 */
 }
@@ -315,6 +321,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
+  log_fatal("Asssertion failed at file: %s on line %d", file, line);
+
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
