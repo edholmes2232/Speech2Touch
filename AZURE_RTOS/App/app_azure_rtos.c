@@ -80,7 +80,7 @@ static TX_BYTE_POOL ux_device_app_byte_pool;
 VOID tx_application_define(VOID *first_unused_memory)
 {
   /* USER CODE BEGIN  tx_application_define_1*/
-
+  (void)first_unused_memory;
   /* USER CODE END  tx_application_define_1 */
 #if (USE_STATIC_ALLOCATION == 1)
   UINT status = TX_SUCCESS;

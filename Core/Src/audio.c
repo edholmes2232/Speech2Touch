@@ -18,11 +18,6 @@
 
 static int32_t _dma_buffer[PICOVOICE_FRAME_SIZE * 2];
 
-static volatile uint8_t _is_recording = 0;
-static volatile int32_t write_index = 0;
-static volatile int32_t read_index = -1;
-static int32_t last_read_index = -1;
-
 // ---------------------------- Azure RTOS Config --------------------------- //
 #define NUM_AUDIO_BUFFERS (16)
 
@@ -90,27 +85,22 @@ void AUDIO_Start(void)
 
 static void processData(const int32_t *dma_src, int16_t *dest)
 {
-  uint32_t start = DWT->CYCCNT;
   for (uint32_t i = 0; i < PICOVOICE_FRAME_SIZE; i++)
   {
-    // 1. Get the raw 32-bit sample from the DMA buffer
+    // Get the raw 32-bit sample
     int32_t sample = dma_src[i];
 
-    // 2. Apply a gain factor. Start with 4.
+    // Apply a gain factor
     // (This is a 12dB gain. Use 2 for 6dB, 8 for 18dB, etc.)
     sample = sample * 8;
 
-    // 3. IMPORTANT: Clamp the value to prevent overflow distortion.
+    // Clamp the value to prevent overflow distortion.
     // The raw 24-bit data is in a 32-bit container, so we clamp to the 32-bit min/max.
     sample = CLAMP(sample, INT32_MIN, INT32_MAX);
 
-    // 4. Now, shift the amplified and clamped value down to 16-bit
+    // Shift amplified and clamped value down to 16-bit
     dest[i] = (int16_t)(sample >> 16);
   }
-  uint32_t end = DWT->CYCCNT;
-  uint32_t cycles = end - start;
-  uint32_t us = cycles / (SystemCoreClock / 1000000);
-  // log_trace("processData took %lu us", us);
 }
 
 void dmaCallbackHandler(int32_t *dma_buffer)
@@ -158,7 +148,6 @@ uint8_t AUDIO_GetBuffer(int16_t **buffer)
     return EXIT_FAILURE;
   }
 
-  // log_trace("buffer=%p", *buffer);
   return EXIT_SUCCESS;
 }
 

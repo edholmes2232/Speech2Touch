@@ -20,13 +20,13 @@
 
 //! Picovoice specific defines
 #define MEMORY_BUFFER_SIZE (70 * 1024)
-#define UUID_SIZE (12)
 static const char *ACCESS_KEY = "picovoice_access_key==";
 
 //! Picovoice statics
 static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
-static uint8_t _uuid[UUID_SIZE];
 static pv_picovoice_t *_handle = NULL;
+// Temporary storage of speech samples
+static int16_t _speech_buffer[512];
 
 //! Picovoice settings
 static const float PORCUPINE_SENSITIVITY = 0.9f;
@@ -47,7 +47,7 @@ static void SPEECH_Process(ULONG thread_input);
 static void wakeWordCallback(void)
 {
   log_info("[wake word]\n");
-  LED_SetState(LED_0, 1);
+  LED_SetState(LED_3, 1);
 
   TOUCHMAPPER_ResetState();
 }
@@ -84,7 +84,7 @@ static void inferenceCallback(pv_inference_t *inference)
   static const char *beverage_slot = "beverage";
   static uint8_t beverage_slot_len = 8; // Length of "beverage"
 
-  LED_SetState(LED_0, 0);
+  LED_SetState(LED_3, 0);
   printf("{\n");
   printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
   if (inference->is_understood)
@@ -136,14 +136,6 @@ void printErrorMessage(char **message_stack, int32_t message_stack_depth)
 
 uint8_t SPEECH_Init(void *memory_ptr)
 {
-  // Board BSP
-  memcpy(_uuid, (uint8_t *)UID_BASE, UUID_SIZE);
-  printf("UUID: ");
-  for (int i = 0; i < UUID_SIZE; i++)
-  {
-    printf("%.2x", _uuid[i]);
-  }
-
   char **message_stack = NULL;
   int32_t message_stack_depth = 0;
   pv_status_t error_status;
@@ -227,7 +219,6 @@ uint8_t SPEECH_Init(void *memory_ptr)
   return EXIT_SUCCESS;
 }
 
-int16_t speech_buffer[512];
 // to be called in while loop
 static void SPEECH_Process(ULONG thread_input)
 {
@@ -247,9 +238,8 @@ static void SPEECH_Process(ULONG thread_input)
       log_error("Failed to get audio buffer: %d", status);
       continue; // Skip processing if buffer is not available
     }
-    uint32_t start = HAL_GetTick();
 
-    memcpy(speech_buffer, buffer, 512 * sizeof(int16_t));
+    memcpy(_speech_buffer, buffer, 512 * sizeof(int16_t));
 
     AUDIO_ReleaseBuffer(buffer);
     buffer = NULL;
@@ -258,18 +248,11 @@ static void SPEECH_Process(ULONG thread_input)
     // HAL_UART_Transmit(&huart1, (uint8_t *)speech_buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
 #else
 
-    const pv_status_t status = pv_picovoice_process(_handle, speech_buffer);
+    const pv_status_t status = pv_picovoice_process(_handle, _speech_buffer);
     if (status != PV_STATUS_SUCCESS)
     {
       log_error("Picovoice process failed: %s", pv_status_to_string(status));
     }
 #endif
-
-    uint32_t end = HAL_GetTick();
-
-    // if ((end - start) > 19)
-    // {
-    //   log_trace("Took %lu ms", end - start);
-    // }
   }
 }

@@ -60,10 +60,10 @@ VOID USBD_HID_Deactivate(void *hid_instance);
 /* USER CODE END PFP */
 
 /**
- * @brief  Application USBX Device Initialization.
- * @param  memory_ptr: memory pointer
- * @retval status
- */
+  * @brief  Application USBX Device Initialization.
+  * @param  memory_ptr: memory pointer
+  * @retval status
+  */
 UINT MX_USBX_Device_Init(VOID *memory_ptr)
 {
   UINT ret = UX_SUCCESS;
@@ -76,14 +76,15 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   UCHAR *string_framework;
   UCHAR *language_id_framework;
   UCHAR *pointer;
-  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL *)memory_ptr;
+  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
 
   /* USER CODE BEGIN MX_USBX_Device_Init0 */
 
   /* USER CODE END MX_USBX_Device_Init0 */
 
   /* Allocate the stack for USBX Memory */
-  if (tx_byte_allocate(byte_pool, (VOID **)&pointer, USBX_DEVICE_MEMORY_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
+  if (tx_byte_allocate(byte_pool, (VOID **) &pointer,
+                       USBX_DEVICE_MEMORY_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
   {
     /* USER CODE BEGIN USBX_ALLOCATE_STACK_ERORR */
     return TX_POOL_ERROR;
@@ -99,10 +100,12 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Get Device Framework High Speed and get the length */
-  device_framework_high_speed = USBD_Get_Device_Framework_Speed(USBD_HIGH_SPEED, &device_framework_hs_length);
+  device_framework_high_speed = USBD_Get_Device_Framework_Speed(USBD_HIGH_SPEED,
+                                                                &device_framework_hs_length);
 
   /* Get Device Framework Full Speed and get the length */
-  device_framework_full_speed = USBD_Get_Device_Framework_Speed(USBD_FULL_SPEED, &device_framework_fs_length);
+  device_framework_full_speed = USBD_Get_Device_Framework_Speed(USBD_FULL_SPEED,
+                                                                &device_framework_fs_length);
 
   /* Get String Framework and get the length */
   string_framework = USBD_Get_String_Framework(&string_framework_length);
@@ -119,8 +122,7 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
                                  string_framework_length,
                                  language_id_framework,
                                  language_id_framework_length,
-                                 UX_NULL)
-      != UX_SUCCESS)
+                                 UX_NULL) != UX_SUCCESS)
   {
     /* USER CODE BEGIN USBX_DEVICE_INITIALIZE_ERORR */
     return UX_ERROR;
@@ -128,18 +130,18 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Initialize the hid custom class parameters for the device */
-  custom_hid_parameter.ux_slave_class_hid_instance_activate = USBD_Custom_HID_Activate;
-  custom_hid_parameter.ux_slave_class_hid_instance_deactivate = USBD_Custom_HID_Deactivate;
+  custom_hid_parameter.ux_slave_class_hid_instance_activate         = USBD_Custom_HID_Activate;
+  custom_hid_parameter.ux_slave_class_hid_instance_deactivate       = USBD_Custom_HID_Deactivate;
   custom_hid_parameter.ux_device_class_hid_parameter_report_address = USBD_HID_ReportDesc(INTERFACE_HID_CUSTOM);
-  custom_hid_parameter.ux_device_class_hid_parameter_report_length = USBD_HID_ReportDesc_length(INTERFACE_HID_CUSTOM);
-  custom_hid_parameter.ux_device_class_hid_parameter_report_id = UX_TRUE;
-  custom_hid_parameter.ux_device_class_hid_parameter_callback = USBD_Custom_HID_SetFeature;
-  custom_hid_parameter.ux_device_class_hid_parameter_get_callback = USBD_Custom_HID_GetReport;
+  custom_hid_parameter.ux_device_class_hid_parameter_report_length  = USBD_HID_ReportDesc_length(INTERFACE_HID_CUSTOM);
+  custom_hid_parameter.ux_device_class_hid_parameter_report_id      = UX_TRUE;
+  custom_hid_parameter.ux_device_class_hid_parameter_callback       = USBD_Custom_HID_SetFeature;
+  custom_hid_parameter.ux_device_class_hid_parameter_get_callback   = USBD_Custom_HID_GetReport;
 #ifdef UX_DEVICE_CLASS_HID_INTERRUPT_OUT_SUPPORT
-  custom_hid_parameter.ux_device_class_hid_parameter_receiver_initialize = ux_device_class_hid_receiver_initialize;
+  custom_hid_parameter.ux_device_class_hid_parameter_receiver_initialize       = ux_device_class_hid_receiver_initialize;
   custom_hid_parameter.ux_device_class_hid_parameter_receiver_event_max_number = USBD_Custom_HID_EventMaxNumber();
   custom_hid_parameter.ux_device_class_hid_parameter_receiver_event_max_length = USBD_Custom_HID_EventMaxLength();
-  custom_hid_parameter.ux_device_class_hid_parameter_receiver_event_callback = USBD_Custom_HID_SetReport;
+  custom_hid_parameter.ux_device_class_hid_parameter_receiver_event_callback   = USBD_Custom_HID_SetReport;
 #endif /* UX_DEVICE_CLASS_HID_INTERRUPT_OUT_SUPPORT */
 
   /* USER CODE BEGIN CUSTOM_HID_PARAMETER */
@@ -160,8 +162,7 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
                                      ux_device_class_hid_entry,
                                      hid_custom_configuration_number,
                                      hid_custom_interface_number,
-                                     &custom_hid_parameter)
-      != UX_SUCCESS)
+                                     &custom_hid_parameter) != UX_SUCCESS)
   {
     /* USER CODE BEGIN USBX_DEVICE_HID_CUSTOM_REGISTER_ERORR */
     return UX_ERROR;
@@ -169,7 +170,8 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Allocate the stack for device application main thread */
-  if (tx_byte_allocate(byte_pool, (VOID **)&pointer, UX_DEVICE_APP_THREAD_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
+  if (tx_byte_allocate(byte_pool, (VOID **) &pointer, UX_DEVICE_APP_THREAD_STACK_SIZE,
+                       TX_NO_WAIT) != TX_SUCCESS)
   {
     /* USER CODE BEGIN MAIN_THREAD_ALLOCATE_STACK_ERORR */
     return TX_POOL_ERROR;
@@ -177,17 +179,10 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Create the device application main thread */
-  if (tx_thread_create(&ux_device_app_thread,
-                       UX_DEVICE_APP_THREAD_NAME,
-                       app_ux_device_thread_entry,
-                       0,
-                       pointer,
-                       UX_DEVICE_APP_THREAD_STACK_SIZE,
-                       UX_DEVICE_APP_THREAD_PRIO,
-                       UX_DEVICE_APP_THREAD_PREEMPTION_THRESHOLD,
-                       UX_DEVICE_APP_THREAD_TIME_SLICE,
-                       UX_DEVICE_APP_THREAD_START_OPTION)
-      != TX_SUCCESS)
+  if (tx_thread_create(&ux_device_app_thread, UX_DEVICE_APP_THREAD_NAME, app_ux_device_thread_entry,
+                       0, pointer, UX_DEVICE_APP_THREAD_STACK_SIZE, UX_DEVICE_APP_THREAD_PRIO,
+                       UX_DEVICE_APP_THREAD_PREEMPTION_THRESHOLD, UX_DEVICE_APP_THREAD_TIME_SLICE,
+                       UX_DEVICE_APP_THREAD_START_OPTION) != TX_SUCCESS)
   {
     /* USER CODE BEGIN MAIN_THREAD_CREATE_ERORR */
     return TX_THREAD_ERROR;
@@ -206,10 +201,10 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
 }
 
 /**
- * @brief  Function implementing app_ux_device_thread_entry.
- * @param  thread_input: User thread input parameter.
- * @retval none
- */
+  * @brief  Function implementing app_ux_device_thread_entry.
+  * @param  thread_input: User thread input parameter.
+  * @retval none
+  */
 static VOID app_ux_device_thread_entry(ULONG thread_input)
 {
   /* USER CODE BEGIN app_ux_device_thread_entry */
