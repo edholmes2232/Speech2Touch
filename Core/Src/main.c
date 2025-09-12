@@ -27,7 +27,6 @@
 #include "tim.h"
 #include "usb.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "led.h"
@@ -86,12 +85,13 @@ int _write(int le, char *ptr, int len)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   log_info("Button pressed: %d", GPIO_Pin);
-  // if (GPIO_Pin ==
-  {
-    LED_SetState(LED_2, 1);
 
-    TOUCHMAPPER_ResetState();
-  }
+  static LED_STATE_T led_state = LED_STATE_IDLE;
+
+  LED_SetState(led_state);
+
+  // Loop through states until LED_STATE_ERROR
+  led_state = (led_state + 1) % (LED_STATE_ERROR + 1);
 }
 
 /* USER CODE END 0 */

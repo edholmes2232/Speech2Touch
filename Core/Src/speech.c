@@ -52,7 +52,7 @@ static void SPEECH_Process(ULONG thread_input);
 static void wakeWordCallback(void)
 {
   log_info("[wake word]\n");
-  LED_SetState(LED_3, 1);
+  LED_SetState(LED_STATE_LISTENING);
 
   TOUCHMAPPER_ResetState();
 }
@@ -88,20 +88,20 @@ static void inferenceCallback(pv_inference_t *inference)
 {
   static const char *beverage_slot = "beverage";
   static uint8_t beverage_slot_len = 8; // Length of "beverage"
+  static const char *cancel_slot = "cancel";
+  static uint8_t cancel_slot_len = 6; // Length of "cancel"
 
-  LED_SetState(LED_3, 0);
-  printf("{\n");
-  printf("    is_understood : '%s',\n", (inference->is_understood ? "true" : "false"));
+  // LED_SetState(LED_3, 0);
   if (inference->is_understood)
   {
-    printf("    intent : '%s',\n", inference->intent);
+    log_info("Command understood");
+    log_info("Intent : '%s'", inference->intent);
 
     if (inference->num_slots > 0)
     {
+      // No need to verify the intent, only one intent registered with num_slots > 0
 
-      // Check other slots?
-
-      // Verify beverage
+      // Verify "beverage"
       if (strncmp(inference->slots[0], beverage_slot, beverage_slot_len) == 0)
       {
         TARGET_T target = getTargetFromString(inference->values[0]);
@@ -109,20 +109,27 @@ static void inferenceCallback(pv_inference_t *inference)
         {
           log_info("Target: %s", touch_targets[target].name);
 
+          LED_SetState(LED_STATE_PROCESSING);
+
           TOUCHMAPPER_HandleTarget(target);
         }
       }
-
-      printf("    slots : {\n");
-      for (int32_t i = 0; i < inference->num_slots; i++)
+    }
+    else if (inference->num_slots == 0)
+    {
+      if (strncmp(inference->intent, cancel_slot, cancel_slot_len) == 0)
       {
-        printf("        '%s' : '%s',\n", inference->slots[i], inference->values[i]);
+        log_info("Cancel command received");
+        // LED should show same as an error
+        LED_SetState(LED_STATE_ERROR);
       }
-      printf("    }\n");
+    }
+    else
+    {
+      log_error("Command not understood");
+      LED_SetState(LED_STATE_ERROR);
     }
   }
-  printf("}\n\n");
-
   pv_inference_delete(inference);
 }
 

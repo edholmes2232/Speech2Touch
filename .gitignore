@@ -19,7 +19,7 @@ compile_commands.json
 .mxproject
 
 # picovoice access key
-pv_access_key.h
+Core/Lib/picovoice/include/pv_access_key.h
 
 # Executables and object files
 *.elf
