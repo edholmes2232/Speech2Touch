@@ -16,5 +16,6 @@ typedef enum
 
 void LED_SetState(LED_STATE_T state);
 void LED_TimerCallback(TIM_HandleTypeDef *htim);
+void LED_SetProcessingComplete(void);
 
 #endif

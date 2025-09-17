@@ -11,6 +11,8 @@ static uint8_t _error_flash_count = 0;
 static uint8_t _error_flash_phase = 0;
 static uint16_t _error_timer_count = 0;
 
+static volatile uint8_t _processing_complete_flag = 0;
+
 void LED_SetState(LED_STATE_T state)
 {
   if (state == _current_state)
@@ -37,6 +39,7 @@ void LED_SetState(LED_STATE_T state)
     break;
   case LED_STATE_PROCESSING:
     log_trace("LED State: PROCESSING");
+    _processing_complete_flag = 0;
     HAL_TIM_Base_Start_IT(&htim16);
     break;
   case LED_STATE_ERROR:
@@ -50,6 +53,11 @@ void LED_SetState(LED_STATE_T state)
   }
 }
 
+void LED_SetProcessingComplete(void)
+{
+  _processing_complete_flag = 1;
+}
+
 void LED_TimerCallback(TIM_HandleTypeDef *htim)
 {
   static uint16_t pwm_value = 0;
@@ -59,7 +67,7 @@ void LED_TimerCallback(TIM_HandleTypeDef *htim)
   const uint16_t pwm_step = 2;
 
   // 300ms = 300 ticks of timer (1kHz)
-  const uint16_t flash_duration_ticks = 200;
+  const uint16_t flash_duration_ticks = 100;
 
   if (htim->Instance != TIM16)
   {
@@ -68,6 +76,14 @@ void LED_TimerCallback(TIM_HandleTypeDef *htim)
 
   if (_current_state == LED_STATE_PROCESSING)
   {
+    // Check if processing marked as complete
+    if (_processing_complete_flag == 1)
+    {
+      _processing_complete_flag = 0;
+      LED_SetState(LED_STATE_IDLE);
+      return;
+    }
+
     pwm_value += direction * pwm_step;
     if (pwm_value >= pwm_max)
     {

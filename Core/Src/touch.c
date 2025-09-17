@@ -1,8 +1,6 @@
 #include "touch.h"
 
-#include <stdlib.h>
-
-// #include "stm32wbxx_hal_pwr_ex.h"
+#include "led.h"
 #include "log.h"
 #include "usb.h"
 #include "ux_api.h"
@@ -10,13 +8,15 @@
 #include "ux_device_class_hid.h"
 #include "ux_utility.h"
 
+#include <stdlib.h>
+
 static UX_SLAVE_CLASS_HID *_hid_instance = NULL;
 static TX_QUEUE _usb_hid_msg_queue;
 
 // Max number of pages to navigate
 #define USB_HID_Q_MAX_SIZE (5)
 // Queue message size, in ULONGs, rounded up
-#define USB_HID_Q_MSG_SIZE_ULONG (sizeof(TOUCH_EVENT_T) + sizeof(ULONG) - 1) / sizeof(ULONG)
+#define USB_HID_Q_MSG_SIZE_ULONG ((sizeof(TOUCH_EVENT_T) + sizeof(ULONG) - 1) / sizeof(ULONG))
 // Max size of the queue = Max number of pages to navigate.
 #define USB_HID_Q_FULL_SIZE (USB_HID_Q_MSG_SIZE_ULONG * sizeof(ULONG) * USB_HID_Q_MAX_SIZE)
 // Delay between pressing and releasing the touch (30 ms) in ticks
@@ -171,6 +171,9 @@ void TOUCH_Thread(ULONG thread_input)
           log_info("Delay complete");
         }
       }
+
+      // Transition LED back to idle
+      LED_SetProcessingComplete();
     }
   }
 }
@@ -183,6 +186,7 @@ void TOUCH_UsbHidActivate(void *hid_instance)
 
 void TOUCH_UsbHidDeactivate(void *hid_instance)
 {
-  _hid_instance = (UX_SLAVE_CLASS_HID *)hid_instance;
+  (void)hid_instance;
+  _hid_instance = NULL;
   log_info("USB HID Deactivated");
 }
