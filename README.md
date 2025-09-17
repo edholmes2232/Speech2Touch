@@ -16,14 +16,23 @@ The INMP441 MEMS microphone is used for voice input.
 
 ## ☕️ Demo
 
-[![Video Demo](https://img.youtube.com/vi/FJQtgSHE-vs/0.jpg)](https://www.youtube.com/shorts/FJQtgSHE-vs)
+
+## 🤖 Prototype Hardware
+
+| | | |
+|:---:|:---:|:---:|
+| ![Top](docs/assets/S2T_V1_TOP.jpg) | ![Side](docs/assets/S2T_V1_SIDE.jpg) | ![Bottom](docs/assets/S2T_V1_BOT.jpg) |
+
+The shape and orientation of the protoboard were dictated by the position of the USB ports of the Franke A600.
+
+
 
 ---
 
 ## 📦 Getting Started
 
 ### Prerequisites
-- STM32WB55 development board
+- STM32WB55 USB Dongle dev board
 - INMP441 microphone
 - Franke A600 (or compatible) touchscreen device
 - QT (for HIL testing)
@@ -123,6 +132,16 @@ The following files configure the available touch targets, convert these coordin
 The Picovoice precompiled binary at `Core/Lib/picovoice/libpicovoice.a` is pulled directly from [Picovoice/picovoice](https://github.com/Picovoice/picovoice/blob/master/sdk/mcu/lib/stm32f411/en/libpicovoice.a) repository.
 
 The configuration files in `Core/Lib/picovoice/include` are specifically set up for a Franke A600, including using "Franke" as the wake-word. New configuration files can be generated from the [Picovoice Console](https://console.picovoice.ai/).
+
+---
+## ☑️ To Do
+- Create .devcontainer for firmware builds within a container.
+- Replace Dev Board + Protoboard with a PCB.
+- Unit testing.
+- CI/CD with GitHub Actions for generating firmware, running unit tests.
+- Extract audio over RTT for tuning.
+- Decouple Franke A600 specific functionality for easier adapting of Speech2Touch to different applications. 
+
 
 ---
 
