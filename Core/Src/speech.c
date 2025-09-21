@@ -1,6 +1,10 @@
+/*!
+ * @file speech.c
+ * @brief Speech processing module using Picovoice SDK
+ */
+
 #include "speech.h"
 
-#include "SEGGER_RTT.h"
 #include "audio.h"
 #include "led.h"
 #include "log.h"
@@ -15,12 +19,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 //! Picovoice specific defines
 #define MEMORY_BUFFER_SIZE (70 * 1024)
+#define SPEECH_TIMEOUT_PERIOD (5 * TX_TIMER_TICKS_PER_SECOND) // 5 seconds
 
 #ifndef PV_ACCESS_KEY
 #error "ACCESS_KEY must be defined in pv_access_key.h"
@@ -30,7 +34,7 @@ static const char *_access_key = PV_ACCESS_KEY;
 //! Picovoice statics
 static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
 static pv_picovoice_t *_handle = NULL;
-// Temporary storage of speech samples
+//! Temporary storage of speech samples
 static int16_t _speech_buffer[512];
 
 //! Picovoice settings
@@ -46,17 +50,40 @@ static const bool RHINO_REQUIRE_ENDPOINT = true;
 #define SPEECH_THREAD_TIME_SLICE (TX_NO_TIME_SLICE)
 
 static TX_THREAD _speech_thread;
+static TX_TIMER _speech_timeout_timer;
 
+static void SPEECH_TimeoutCallback(ULONG arg);
 static void SPEECH_Process(ULONG thread_input);
+static void SPEECH_Reset(void);
 
+/**
+ * @brief Wake word detection callback - called by Picovoice when wake word is detected.
+ *
+ * Sets LED to listening state, resets touch mapper, and starts timeout timer.
+ */
 static void wakeWordCallback(void)
 {
   log_info("[wake word]\n");
   LED_SetState(LED_STATE_LISTENING);
 
   TOUCHMAPPER_ResetState();
+
+  // Start the timeout timer
+  UINT status = tx_timer_activate(&_speech_timeout_timer);
+  if (status != TX_SUCCESS)
+  {
+    log_fatal("Failed to start SPEECH timeout timer: %d", status);
+    return;
+  }
 }
 
+/**
+ * @brief Maps a beverage name string to a touch target enum.
+ *
+ * @param target_str The beverage name string from speech recognition
+ * @return TARGET_T enum value or TARGET_COUNT if not found
+ * @note Called by inferenceCallback when processing beverage orders
+ */
 static TARGET_T getTargetFromString(const char *target_str)
 {
   if (target_str == NULL)
@@ -84,12 +111,25 @@ static TARGET_T getTargetFromString(const char *target_str)
   return TARGET_COUNT; // Not found
 }
 
+/**
+ * @brief Speech inference callback - called by Picovoice when speech intent is recognized.
+ *
+ * Processes beverage orders and cancel commands, maps them to touch targets.
+ * Updates LED state and forwards valid targets to touch mapper.
+ */
 static void inferenceCallback(pv_inference_t *inference)
 {
   static const char *beverage_slot = "beverage";
   static uint8_t beverage_slot_len = 8; // Length of "beverage"
   static const char *cancel_slot = "cancel";
   static uint8_t cancel_slot_len = 6; // Length of "cancel"
+
+  // Stop timer
+  UINT status = tx_timer_deactivate(&_speech_timeout_timer);
+  if (status != TX_SUCCESS)
+  {
+    log_error("Failed to deactivate SPEECH timeout timer: %d", status);
+  }
 
   // LED_SetState(LED_3, 0);
   if (inference->is_understood)
@@ -133,7 +173,13 @@ static void inferenceCallback(pv_inference_t *inference)
   pv_inference_delete(inference);
 }
 
-void printErrorMessage(char **message_stack, int32_t message_stack_depth)
+/**
+ * @brief Prints Picovoice error messages from error stack.
+ *
+ * @param message_stack Array of error message strings
+ * @param message_stack_depth Number of messages in the stack
+ */
+static void printErrorMessage(char **message_stack, int32_t message_stack_depth)
 {
   for (int32_t i = 0; i < message_stack_depth; i++)
   {
@@ -141,7 +187,12 @@ void printErrorMessage(char **message_stack, int32_t message_stack_depth)
   }
 }
 
-uint8_t SPEECH_Init(void *memory_ptr)
+/**
+ * @brief Initializes the Picovoice engine.
+ *
+ * @return EXIT_SUCCESS on success, EXIT_FAILURE on error
+ */
+static uint8_t initPicovoice(void)
 {
   char **message_stack = NULL;
   int32_t message_stack_depth = 0;
@@ -185,11 +236,29 @@ uint8_t SPEECH_Init(void *memory_ptr)
     log_error("retrieving context info failed with '%s'", pv_status_to_string(status));
     return EXIT_FAILURE;
   }
-  log_debug("Rhino context info: %s", rhino_context);
-  log_debug("Picovoice expecting frame_length: %d, sample_rate: %d", pv_picovoice_frame_length(), pv_sample_rate());
+
+  return EXIT_SUCCESS;
+}
+
+/**
+ * @brief Initializes the speech processing module.
+ *
+ * @param memory_ptr Pointer to ThreadX byte pool for memory allocation
+ * @return EXIT_SUCCESS on success, EXIT_FAILURE on error
+ */
+uint8_t SPEECH_Init(void *memory_ptr)
+{
+
+  // Initialize Picovoice
+  uint8_t ret = initPicovoice();
+  if (ret != EXIT_SUCCESS)
+  {
+    log_fatal("Failed to initialize Picovoice");
+    return EXIT_FAILURE;
+  }
 
   // Setup AUDIO
-  uint8_t ret = AUDIO_Init(memory_ptr);
+  ret = AUDIO_Init(memory_ptr);
   if (ret != EXIT_SUCCESS)
   {
     log_fatal("AUDIO_Init failed");
@@ -223,10 +292,50 @@ uint8_t SPEECH_Init(void *memory_ptr)
     return EXIT_FAILURE;
   }
 
+  // Allocate memory for the SPEECH timeout timer
+  rtos_status = tx_timer_create(&_speech_timeout_timer,
+                                "SPEECH Timeout Timer",
+                                SPEECH_TimeoutCallback,
+                                0,
+                                SPEECH_TIMEOUT_PERIOD,
+                                SPEECH_TIMEOUT_PERIOD,
+                                TX_NO_ACTIVATE);
+  if (rtos_status != TX_SUCCESS)
+  {
+    log_fatal("Failed to create SPEECH timeout timer: %d", rtos_status);
+    return EXIT_FAILURE;
+  }
+
   return EXIT_SUCCESS;
 }
 
-// to be called in while loop
+/**
+ * @brief Timeout callback for speech processing - called by ThreadX timer.
+ *
+ * Resets Picovoice when no speech is detected within timeout period.
+ * Deactivates timeout timer and sets LED to error state.
+ */
+static void SPEECH_TimeoutCallback(ULONG arg)
+{
+  (void)arg;
+
+  // Stop timer
+  UINT status = tx_timer_deactivate(&_speech_timeout_timer);
+  if (status != TX_SUCCESS)
+  {
+    log_error("Failed to deactivate SPEECH timeout timer: %d", status);
+  }
+
+  log_warn("SPEECH timeout, resetting Picovoice");
+  LED_SetState(LED_STATE_ERROR);
+  SPEECH_Reset();
+}
+
+/**
+ * @brief Main speech processing thread - runs continuously as ThreadX thread.
+ *
+ * Captures audio buffers and processes them through Picovoice.
+ */
 static void SPEECH_Process(ULONG thread_input)
 {
   log_debug("SPEECH_Process started");
@@ -234,7 +343,7 @@ static void SPEECH_Process(ULONG thread_input)
   int16_t *buffer;
   uint8_t status;
 
-  printf("\nAUDIO starting...\n");
+  log_info("AUDIO starting...");
   AUDIO_Start();
   for (;;)
   {
@@ -262,4 +371,42 @@ static void SPEECH_Process(ULONG thread_input)
     }
 #endif
   }
+
+  log_debug("Terminated thread");
+}
+
+/**
+ * @brief Resets the speech processing engine after timeout or error.
+ *
+ * Stops audio, deletes and reinitializes Picovoice, then resumes audio.
+ */
+static void SPEECH_Reset(void)
+{
+  // DEBUG: record start time from sysclk
+  uint32_t start_time = HAL_GetTick();
+
+  // Stop AUDIO DMAs
+  AUDIO_Stop();
+
+  // Delete Picovoice instance
+  if (_handle == NULL)
+  {
+    log_error("Handle == NULL, failed to delete Picovoice instance");
+  }
+  else
+  {
+    pv_picovoice_delete(_handle);
+    _handle = NULL;
+  }
+
+  if (initPicovoice() != EXIT_SUCCESS)
+  {
+    log_fatal("Failed to re-initialize Picovoice");
+    return;
+  }
+
+  // Resume audio capture
+  AUDIO_Start();
+
+  log_debug("SPEECH_Reset completed in %d ms", HAL_GetTick() - start_time);
 }

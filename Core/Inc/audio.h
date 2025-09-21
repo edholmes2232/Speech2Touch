@@ -19,6 +19,11 @@ uint8_t AUDIO_Init(void *memory_ptr);
 void AUDIO_Start(void);
 
 /**
+ * @brief Stop the audio processing.
+ */
+void AUDIO_Stop(void);
+
+/**
  * @brief Get an audio buffer for processing. Blocks until a buffer is available.
  *
  * @param buffer Pointer to pointer to audio buffer

@@ -3,13 +3,11 @@
 #include "led.h"
 #include "log.h"
 #include "main.h"
-#include "picovoice.h"
 #include "sai.h"
-#include "stm32wbxx_hal_def.h"
 #include "stm32wbxx_hal_sai.h"
 #include "tx_api.h"
 
-#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #define PV_AUDIO_REC_AUDIO_FREQUENCY (16000U)
@@ -69,15 +67,23 @@ uint8_t AUDIO_Init(VOID *memory_ptr)
 void AUDIO_Start(void)
 {
   log_info("AUDIO_Start");
-  // Enable DWT cycle counter for timing if not already enabled
-  if (!(DWT->CTRL & DWT_CTRL_CYCCNTENA_Msk))
-  {
-    // log_fatal("Enabling DWT cycle counter");
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-  }
+
   HAL_SAI_Receive_DMA(&hsai_BlockB1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
+}
+
+void AUDIO_Stop(void)
+{
+  log_info("Stopping audio capture");
+
+  // Stop DMA
+  HAL_SAI_DMAStop(&hsai_BlockB1);
+
+  // Flush queue
+  UINT status = tx_queue_flush(&_audio_data_queue);
+  if (status != TX_SUCCESS)
+  {
+    log_fatal("Failed to flush audio data queue: %d", status);
+  }
 }
 
 // A helper macro for clamping
@@ -120,9 +126,12 @@ void dmaCallbackHandler(int32_t *dma_buffer)
   status = tx_queue_send(&_audio_data_queue, &buffer, TX_NO_WAIT);
   if (status != TX_SUCCESS)
   {
-    log_error("Failed to send audio buffer to queue, dropping frame");
-    tx_block_release(buffer);
-
+    log_error("Failed to send audio buffer to queue, dropping frame: %d", status);
+    UINT release_status = tx_block_release(buffer);
+    if (release_status != TX_SUCCESS)
+    {
+      log_error("Failed to release audio buffer back to byte pool: %d", release_status);
+    }
     return;
   }
 }
@@ -142,7 +151,7 @@ void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 uint8_t AUDIO_GetBuffer(int16_t **buffer)
 {
   UINT status = tx_queue_receive(&_audio_data_queue, buffer, TX_WAIT_FOREVER);
-  if (status != TX_SUCCESS)
+  if ((status != TX_SUCCESS) && status != TX_QUEUE_EMPTY)
   {
     log_error("Failed to receive audio buffer from queue: %d", status);
     return EXIT_FAILURE;
@@ -158,7 +167,7 @@ void AUDIO_ReleaseBuffer(int16_t *buffer)
     UINT status = tx_block_release(buffer);
     if (status != TX_SUCCESS)
     {
-      log_error("Failed to release audio buffer back to byte pool");
+      log_error("Failed to release audio buffer back to byte pool: %d", status);
     }
   }
 }
