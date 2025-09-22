@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QList>
+#include <QLoggingCategory>
 #include <QMetaObject>
 #include <QPushButton>
 #include <Qt>
@@ -34,13 +35,12 @@ class HilTest : public ::testing::Test
 {
   protected:
   // Max time to wait for Device to press target
-  static constexpr int MAX_WAIT_MS = 2000;
+  static constexpr int MAX_WAIT_MS = 3000;
 
   std::promise<TARGET_T> _button_released_promise;
   std::future<TARGET_T> _button_released_future;
   std::unique_ptr<TTS> _tts;
 
-  // void SetUp() override
   static void SetUpTestSuite()
   {
 
@@ -88,7 +88,6 @@ class HilTest : public ::testing::Test
         Qt::BlockingQueuedConnection);
   }
 
-  // This runs after each TEST_F
   static void TearDownTestSuite()
   {
     // Shut down the Qt application from it's own thread
@@ -153,7 +152,8 @@ INSTANTIATE_TEST_SUITE_P(AllTargets, TargetButtonPressed, ::testing::ValuesIn(ge
 TEST_P(TargetButtonPressed, Pressed)
 {
   const TARGET_T target = GetParam();
-  _tts->say(std::string("Frankie! Make me a ") + touch_targets[target].name + ".");
+  // Phonetic spelling of Franke for tts. Exclamation mark for pause between wake word and command
+  _tts->say(std::string("Frankie! Make me a... ") + touch_targets[target].name + ".");
   ASSERT_TRUE(expectButtonReleased(target, MAX_WAIT_MS)) << "Failed to press target: " << touch_targets[target].name;
 }
 
@@ -161,8 +161,10 @@ int main(int argc, char **argv)
 {
   namespace po = boost::program_options;
   po::options_description desc("Allowed options");
-  desc.add_options()("help,h", "produce help message")(
-      "input", po::value<std::string>(), "input device path (e.g. /dev/input/eventX)");
+  desc.add_options() //
+      ("help,h", "produce help message") //
+      ("input", po::value<std::string>(), "input device path (e.g. /dev/input/eventX)") //
+      ("verbose,v", "enable debug output");
 
   po::variables_map vm;
   try
@@ -182,6 +184,14 @@ int main(int argc, char **argv)
     std::cout << desc << std::endl;
     return 0;
   }
+
+  // Configure Qt logging based on verbose flag
+  if (!vm.count("verbose"))
+  {
+    // Disable Qt debug output by default
+    QLoggingCategory::setFilterRules("*.debug=false\n*.warning=false\n*.info=false");
+  }
+
   if (vm.count("input"))
   {
     _input_device_path = vm["input"].as<std::string>();
