@@ -8,10 +8,8 @@
 #include "audio.h"
 #include "led.h"
 #include "log.h"
-#include "pv_access_key.h"
-#include "pv_picovoice.h"
-#include "pv_porcupine_params.h"
-#include "pv_rhino_params.h"
+#include "picovoice.h"
+#include "pv.h"
 #include "stm32wbxx_hal.h"
 #include "touch_mapper.h"
 #include "touch_targets.h"
@@ -22,26 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-//! Picovoice specific defines
-#define MEMORY_BUFFER_SIZE (70 * 1024)
 #define TIMEOUT_PERIOD_TICKS (8 * TX_TIMER_TICKS_PER_SECOND) // 8 seconds
 
-#ifndef PV_ACCESS_KEY
-#error "ACCESS_KEY must be defined in pv_access_key.h"
-#endif
-static const char *_access_key = PV_ACCESS_KEY;
-
-//! Picovoice statics
-static int8_t _memory_buffer[MEMORY_BUFFER_SIZE] __attribute__((aligned(16)));
-static pv_picovoice_t *_handle = NULL;
 //! Temporary storage of speech samples
 static int16_t _speech_buffer[512];
-
-//! Picovoice settings
-static const float PORCUPINE_SENSITIVITY = 0.9f;
-static const float RHINO_SENSITIVITY = 0.9f;
-static const float RHINO_ENDPOINT_DURATION_SEC = 1.0f;
-static const bool RHINO_REQUIRE_ENDPOINT = true;
 
 //! Azure RTOS settings
 #define SPEECH_THREAD_STACK_SIZE (1024)
@@ -65,7 +47,7 @@ static void SPEECH_Reset(void);
  *
  * Sets LED to listening state, resets touch mapper, and starts timeout timer.
  */
-static void wakeWordCallback(void)
+void SPEECH_WakeWordCallback(void)
 {
   log_info("[wake word]\n");
   LED_SetState(LED_STATE_LISTENING);
@@ -87,7 +69,7 @@ static void wakeWordCallback(void)
  *
  * @param target_str The beverage name string from speech recognition
  * @return TARGET_T enum value or TARGET_COUNT if not found
- * @note Called by inferenceCallback when processing beverage orders
+ * @note Called by SPEECH_InferenceCallback when processing beverage orders
  */
 static TARGET_T getTargetFromString(const char *target_str)
 {
@@ -122,7 +104,7 @@ static TARGET_T getTargetFromString(const char *target_str)
  * Processes beverage orders and cancel commands, maps them to touch targets.
  * Updates LED state and forwards valid targets to touch mapper.
  */
-static void inferenceCallback(pv_inference_t *inference)
+void SPEECH_InferenceCallback(pv_inference_t *inference)
 {
   static const char *beverage_slot = "beverage";
   static uint8_t beverage_slot_len = 8; // Length of "beverage"
@@ -136,7 +118,6 @@ static void inferenceCallback(pv_inference_t *inference)
     log_error("Failed to deactivate SPEECH timeout timer: %d", status);
   }
 
-  // LED_SetState(LED_3, 0);
   if (inference->is_understood)
   {
     log_info("Command understood");
@@ -179,73 +160,6 @@ static void inferenceCallback(pv_inference_t *inference)
 }
 
 /**
- * @brief Prints Picovoice error messages from error stack.
- *
- * @param message_stack Array of error message strings
- * @param message_stack_depth Number of messages in the stack
- */
-static void printErrorMessage(char **message_stack, int32_t message_stack_depth)
-{
-  for (int32_t i = 0; i < message_stack_depth; i++)
-  {
-    log_error("[%ld] %s", i, message_stack[i]);
-  }
-}
-
-/**
- * @brief Initializes the Picovoice engine.
- *
- * @return EXIT_SUCCESS on success, EXIT_FAILURE on error
- */
-static uint8_t initPicovoice(void)
-{
-  char **message_stack = NULL;
-  int32_t message_stack_depth = 0;
-  pv_status_t error_status;
-
-  pv_status_t status = pv_picovoice_init(_access_key, // access key
-                                         MEMORY_BUFFER_SIZE, // memory size
-                                         _memory_buffer, // memory buffer
-                                         sizeof(KEYWORD_ARRAY), // keyword model size
-                                         KEYWORD_ARRAY, // keyword model
-                                         PORCUPINE_SENSITIVITY, // wake word sensitivity
-                                         wakeWordCallback, // wake word callback
-                                         sizeof(CONTEXT_ARRAY), // context model size
-                                         CONTEXT_ARRAY, // context model
-                                         RHINO_SENSITIVITY, // inference sensitivity
-                                         RHINO_ENDPOINT_DURATION_SEC, // endpoint duration
-                                         RHINO_REQUIRE_ENDPOINT, // require endpoint
-                                         inferenceCallback, // inference callback
-                                         &_handle // handle
-  );
-  if (status != PV_STATUS_SUCCESS)
-  {
-    log_fatal("Picovoice init failed: %s", pv_status_to_string(status));
-
-    error_status = pv_get_error_stack(&message_stack, &message_stack_depth);
-    if (error_status != PV_STATUS_SUCCESS)
-    {
-      log_fatal("Failed to get error stack: %s", pv_status_to_string(error_status));
-      return EXIT_FAILURE;
-    }
-
-    printErrorMessage(message_stack, message_stack_depth);
-    pv_free_error_stack(message_stack);
-    return EXIT_FAILURE;
-  }
-
-  const char *rhino_context = NULL;
-  status = pv_picovoice_context_info(_handle, &rhino_context);
-  if (status != PV_STATUS_SUCCESS)
-  {
-    log_error("retrieving context info failed with '%s'", pv_status_to_string(status));
-    return EXIT_FAILURE;
-  }
-
-  return EXIT_SUCCESS;
-}
-
-/**
  * @brief Initializes the speech processing module.
  *
  * @param memory_ptr Pointer to ThreadX byte pool for memory allocation
@@ -253,17 +167,16 @@ static uint8_t initPicovoice(void)
  */
 uint8_t SPEECH_Init(void *memory_ptr)
 {
-
   // Initialize Picovoice
-  uint8_t ret = initPicovoice();
-  if (ret != EXIT_SUCCESS)
+  pv_status_t pv_status = PV_Init(SPEECH_WakeWordCallback, SPEECH_InferenceCallback);
+  if (pv_status != PV_STATUS_SUCCESS)
   {
     log_fatal("Failed to initialize Picovoice");
     return EXIT_FAILURE;
   }
 
   // Setup AUDIO
-  ret = AUDIO_Init(memory_ptr);
+  uint8_t ret = AUDIO_Init(memory_ptr);
   if (ret != EXIT_SUCCESS)
   {
     log_fatal("AUDIO_Init failed");
@@ -347,6 +260,7 @@ static void SPEECH_Process(ULONG thread_input)
   (void)thread_input;
   int16_t *buffer;
   uint8_t status;
+  pv_status_t pv_status;
 
   log_info("AUDIO starting...");
   AUDIO_Start();
@@ -368,11 +282,10 @@ static void SPEECH_Process(ULONG thread_input)
 #ifdef AUDIO_OVER_USART
     // HAL_UART_Transmit(&huart1, (uint8_t *)speech_buffer, 512 * sizeof(int16_t), HAL_MAX_DELAY);
 #else
-
-    const pv_status_t status = pv_picovoice_process(_handle, _speech_buffer);
-    if (status != PV_STATUS_SUCCESS)
+    pv_status = PV_Process(_speech_buffer);
+    if (pv_status != PV_STATUS_SUCCESS)
     {
-      log_error("Picovoice process failed: %s", pv_status_to_string(status));
+      log_error("Picovoice process failed");
     }
 #endif
   }
@@ -394,17 +307,9 @@ static void SPEECH_Reset(void)
   AUDIO_Stop();
 
   // Delete Picovoice instance
-  if (_handle == NULL)
-  {
-    log_error("Handle == NULL, failed to delete Picovoice instance");
-  }
-  else
-  {
-    pv_picovoice_delete(_handle);
-    _handle = NULL;
-  }
+  PV_Delete();
 
-  if (initPicovoice() != EXIT_SUCCESS)
+  if (PV_Init(SPEECH_WakeWordCallback, SPEECH_InferenceCallback) != PV_STATUS_SUCCESS)
   {
     log_fatal("Failed to re-initialize Picovoice");
     return;

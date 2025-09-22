@@ -71,6 +71,7 @@ else()
         ${CMAKE_SOURCE_DIR}/Core/Src/audio.c
         ${CMAKE_SOURCE_DIR}/Core/Src/led.c
         ${CMAKE_SOURCE_DIR}/Core/Src/speech.c
+        ${CMAKE_SOURCE_DIR}/Core/Src/pv.c
         ${CMAKE_SOURCE_DIR}/Core/Src/touch.c
         ${CMAKE_SOURCE_DIR}/Core/Src/touch_targets.c
         ${CMAKE_SOURCE_DIR}/Core/Src/touch_mapper.c
