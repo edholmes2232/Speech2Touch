@@ -48,3 +48,15 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(test_full_loop)
+
+# Add standalone GUI application (no gtest, no TTS)
+add_executable(
+  standalone_gui
+  standalone_gui.cpp
+)
+
+target_link_libraries(
+  standalone_gui
+  harness_gui_lib
+  Boost::program_options
+)

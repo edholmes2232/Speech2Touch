@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <future>
+#include <iostream>
 #include <memory>
 
 void MainWindow::setupButtons()
@@ -283,6 +284,11 @@ void MainWindow::onButtonReleased(TARGET_T button)
   {
     _button_released_promise->set_value(button);
     _button_released_promise = nullptr;
+  }
+  else
+  {
+    // For standalone mode, print to console
+    std::cout << "Target activated: " << touch_targets[button].name << std::endl;
   }
 }
 
