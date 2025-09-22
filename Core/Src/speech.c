@@ -24,7 +24,7 @@
 
 //! Picovoice specific defines
 #define MEMORY_BUFFER_SIZE (70 * 1024)
-#define SPEECH_TIMEOUT_PERIOD (5 * TX_TIMER_TICKS_PER_SECOND) // 5 seconds
+#define TIMEOUT_PERIOD_TICKS (8 * TX_TIMER_TICKS_PER_SECOND) // 8 seconds
 
 #ifndef PV_ACCESS_KEY
 #error "ACCESS_KEY must be defined in pv_access_key.h"
@@ -56,6 +56,10 @@ static void SPEECH_TimeoutCallback(ULONG arg);
 static void SPEECH_Process(ULONG thread_input);
 static void SPEECH_Reset(void);
 
+#define START_SPEECH_TIMEOUT() tx_timer_activate(&_speech_timeout_timer);
+#define RESET_SPEECH_TIMEOUT() tx_timer_change(&_speech_timeout_timer, TIMEOUT_PERIOD_TICKS, TIMEOUT_PERIOD_TICKS);
+#define STOP_SPEECH_TIMEOUT() tx_timer_deactivate(&_speech_timeout_timer);
+
 /**
  * @brief Wake word detection callback - called by Picovoice when wake word is detected.
  *
@@ -69,7 +73,8 @@ static void wakeWordCallback(void)
   TOUCHMAPPER_ResetState();
 
   // Start the timeout timer
-  UINT status = tx_timer_activate(&_speech_timeout_timer);
+  RESET_SPEECH_TIMEOUT();
+  UINT status = START_SPEECH_TIMEOUT();
   if (status != TX_SUCCESS)
   {
     log_fatal("Failed to start SPEECH timeout timer: %d", status);
@@ -125,7 +130,7 @@ static void inferenceCallback(pv_inference_t *inference)
   static uint8_t cancel_slot_len = 6; // Length of "cancel"
 
   // Stop timer
-  UINT status = tx_timer_deactivate(&_speech_timeout_timer);
+  UINT status = STOP_SPEECH_TIMEOUT();
   if (status != TX_SUCCESS)
   {
     log_error("Failed to deactivate SPEECH timeout timer: %d", status);
@@ -297,8 +302,8 @@ uint8_t SPEECH_Init(void *memory_ptr)
                                 "SPEECH Timeout Timer",
                                 SPEECH_TimeoutCallback,
                                 0,
-                                SPEECH_TIMEOUT_PERIOD,
-                                SPEECH_TIMEOUT_PERIOD,
+                                TIMEOUT_PERIOD_TICKS,
+                                TIMEOUT_PERIOD_TICKS,
                                 TX_NO_ACTIVATE);
   if (rtos_status != TX_SUCCESS)
   {
@@ -320,7 +325,7 @@ static void SPEECH_TimeoutCallback(ULONG arg)
   (void)arg;
 
   // Stop timer
-  UINT status = tx_timer_deactivate(&_speech_timeout_timer);
+  UINT status = STOP_SPEECH_TIMEOUT();
   if (status != TX_SUCCESS)
   {
     log_error("Failed to deactivate SPEECH timeout timer: %d", status);
