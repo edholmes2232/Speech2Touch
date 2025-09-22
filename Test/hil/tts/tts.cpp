@@ -6,20 +6,17 @@ extern "C" int system(const char *);
 
 TTS::TTS()
 {
-  if (system("command -v festival > /dev/null 2>&1") == 0)
+  if (system("command -v espeak > /dev/null 2>&1") == 0)
   {
-    std::cout << "Using Festival TTS engine." << std::endl;
+    engine = Engine::Espeak;
+  }
+  else if (system("command -v festival > /dev/null 2>&1") == 0)
+  {
     engine = Engine::Festival;
   }
   else if (system("command -v flite > /dev/null 2>&1") == 0)
   {
-    std::cout << "Using Flite TTS engine." << std::endl;
     engine = Engine::Flite;
-  }
-  else if (system("command -v espeak > /dev/null 2>&1") == 0)
-  {
-    std::cout << "Using Espeak TTS engine." << std::endl;
-    engine = Engine::Espeak;
   }
   else
   {
