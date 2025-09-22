@@ -16,13 +16,14 @@ The INMP441 MEMS microphone is used for voice input.
 
 ## ☕️ Demo
 
-https://github.com/user-attachments/assets/8245300e-b727-4958-a33f-57db51934c3c
+https://github.com/user-attachments/assets/7025197e-daeb-4745-9b6d-d1ec124fa88a
+
 
 ## 🤖 Prototype Hardware
 
 | | | |
 |:---:|:---:|:---:|
-| ![Top](docs/assets/S2T_V1_TOP.jpg) | ![Side](docs/assets/S2T_V1_SIDE.jpg) | ![Bottom](docs/assets/S2T_V1_BOT.jpg) |
+| ![S2T_V1_TOP](https://github.com/user-attachments/assets/21ffebfd-c1b7-4780-8bc3-f142b70db1de) | ![S2T_V1_SIDE](https://github.com/user-attachments/assets/7acb48fc-a3f5-4bd1-9708-58f38a2c5342) | ![S2T_V1_BOT](https://github.com/user-attachments/assets/a1965d24-b4f8-4a0d-9eb0-59d6c4dbb38d) |
 
 The shape and orientation of the protoboard were dictated by the position of the USB ports of the Franke A600.
 
