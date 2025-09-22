@@ -15,7 +15,7 @@
 #define AUDIO_BUFFER_SIZE_BYTES (PICOVOICE_FRAME_SIZE * sizeof(int16_t))
 
 static int32_t _dma_buffer[PICOVOICE_FRAME_SIZE * 2];
-
+static volatile uint8_t _audio_active = 0;
 // ---------------------------- Azure RTOS Config --------------------------- //
 #define NUM_AUDIO_BUFFERS (16)
 
@@ -68,6 +68,8 @@ void AUDIO_Start(void)
 {
   log_info("AUDIO_Start");
 
+  _audio_active = 1;
+
   HAL_SAI_Receive_DMA(&hsai_BlockB1, (uint8_t *)_dma_buffer, PICOVOICE_FRAME_SIZE * 2);
 }
 
@@ -76,13 +78,24 @@ void AUDIO_Stop(void)
   log_info("Stopping audio capture");
 
   // Stop DMA
+  _audio_active = 0;
   HAL_SAI_DMAStop(&hsai_BlockB1);
 
-  // Flush queue
-  UINT status = tx_queue_flush(&_audio_data_queue);
-  if (status != TX_SUCCESS)
+  // Wait 1ms for remaining audio
+  tx_thread_sleep((1 * TX_TIMER_TICKS_PER_SECOND) / 1000);
+
+  // Drain queue, release all pending buffers
+  int16_t *buffer;
+  UINT status;
+
+  while (tx_queue_receive(&_audio_data_queue, &buffer, TX_NO_WAIT) == TX_SUCCESS)
   {
-    log_fatal("Failed to flush audio data queue: %d", status);
+    // Release the buffer back to the byte pool
+    status = tx_block_release(buffer);
+    if (status != TX_SUCCESS)
+    {
+      log_error("Failed to release audio buffer back to byte pool: %d", status);
+    }
   }
 }
 
@@ -111,6 +124,12 @@ static void processData(const int32_t *dma_src, int16_t *dest)
 
 void dmaCallbackHandler(int32_t *dma_buffer)
 {
+  if (!_audio_active)
+  {
+    log_debug("Audio inactive, dropping frame");
+    return;
+  }
+
   // Allocate buff from byte pool
   int16_t *buffer = NULL;
   UINT status = tx_block_allocate(&_audio_block_pool, (VOID **)&buffer, TX_NO_WAIT);
