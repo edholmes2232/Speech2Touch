@@ -28,6 +28,9 @@ https://github.com/user-attachments/assets/7025197e-daeb-4745-9b6d-d1ec124fa88a
 The shape and orientation of the protoboard were dictated by the position of the USB ports of the Franke A600.
 
 
+## 🏭 Hardware-In-Loop (HIL) Test
+
+https://github.com/user-attachments/assets/d8d1ce1c-74fb-45fa-a442-dd6b9ee583c0
 
 ---
 
