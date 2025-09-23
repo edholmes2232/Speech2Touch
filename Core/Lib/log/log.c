@@ -48,6 +48,13 @@ static const char *level_colors[] = {"\x1b[94m", "\x1b[36m", "\x1b[32m", "\x1b[3
 
 static void stdout_callback(log_Event *ev)
 {
+  if (ev->level == LOG_NONE)
+  {
+    vfprintf(ev->udata, ev->fmt, ev->ap);
+    fprintf(ev->udata, "\r\n");
+    fflush(ev->udata);
+    return;
+  }
 #ifdef LOG_USE_COLOR
   fprintf(ev->udata, "%s%-5s\x1b[0m \x1b[90m%s \x1b[0m ", level_colors[ev->level], level_strings[ev->level], ev->func);
 #else
