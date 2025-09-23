@@ -49,7 +49,7 @@ static void SPEECH_Reset(void);
  */
 void SPEECH_WakeWordCallback(void)
 {
-  log_info("[wake word]\n");
+  log_none("\r\n*** wake word detected ***");
   LED_SetState(LED_STATE_LISTENING);
 
   TOUCHMAPPER_ResetState();
@@ -62,6 +62,7 @@ void SPEECH_WakeWordCallback(void)
     log_fatal("Failed to start SPEECH timeout timer: %d", status);
     return;
   }
+  log_info("");
 }
 
 /**
@@ -106,10 +107,7 @@ static TARGET_T getTargetFromString(const char *target_str)
  */
 void SPEECH_InferenceCallback(pv_inference_t *inference)
 {
-  static const char *beverage_slot = "beverage";
-  static uint8_t beverage_slot_len = 8; // Length of "beverage"
-  static const char *cancel_slot = "cancel";
-  static uint8_t cancel_slot_len = 6; // Length of "cancel"
+  log_none("\r\n*** Inference received ***");
 
   // Stop timer
   UINT status = STOP_SPEECH_TIMEOUT();
@@ -118,44 +116,52 @@ void SPEECH_InferenceCallback(pv_inference_t *inference)
     log_error("Failed to deactivate SPEECH timeout timer: %d", status);
   }
 
-  if (inference->is_understood)
+  if ((!inference->is_understood) || (inference->intent == NULL))
   {
-    log_info("Command understood");
-    log_info("Intent : '%s'", inference->intent);
+    log_info("Inference not understood or invalid intent");
+    LED_SetState(LED_STATE_ERROR);
+  }
+  else
+  {
+    log_info("Intent: '%s'", inference->intent);
 
-    if (inference->num_slots > 0)
+    if (strcmp(inference->intent, "orderBeverage") == 0)
     {
-      // No need to verify the intent, only one intent registered with num_slots > 0
-
-      // Verify "beverage"
-      if (strncmp(inference->slots[0], beverage_slot, beverage_slot_len) == 0)
+      // Handle beverage order
+      if ((inference->num_slots > 0) && (inference->slots != NULL) && (inference->values != NULL)
+          && (inference->slots[0] != NULL) && (inference->values[0] != NULL))
       {
         TARGET_T target = getTargetFromString(inference->values[0]);
         if (target != TARGET_COUNT)
         {
           log_info("Target: %s", touch_targets[target].name);
-
           LED_SetState(LED_STATE_PROCESSING);
-
           TOUCHMAPPER_HandleTarget(target);
         }
+        else
+        {
+          log_error("Unknown target: %s", inference->values[0]);
+          LED_SetState(LED_STATE_ERROR);
+        }
       }
-    }
-    else if (inference->num_slots == 0)
-    {
-      if (strncmp(inference->intent, cancel_slot, cancel_slot_len) == 0)
+      else
       {
-        log_info("Cancel command received");
-        // LED should show same as an error
+        log_error("Invalid slots or values for beverage order");
         LED_SetState(LED_STATE_ERROR);
       }
     }
+    else if (strcmp(inference->intent, "cancel") == 0)
+    {
+      log_info("Cancel command received");
+      LED_SetState(LED_STATE_ERROR);
+    }
     else
     {
-      log_error("Command not understood");
+      log_info("Unknown command: %s", inference->intent);
       LED_SetState(LED_STATE_ERROR);
     }
   }
+
   pv_inference_delete(inference);
 }
 
