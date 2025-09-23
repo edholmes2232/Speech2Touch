@@ -103,4 +103,11 @@ else()
         ${CMAKE_SOURCE_DIR}/Core/Lib/picovoice/libpicovoice.a
         # Add user defined libraries
     )
+
+    # Generate .bin and .hex files
+    add_custom_command(TARGET ${CMAKE_PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O ihex ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.hex
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.bin
+    )    
 endif()
