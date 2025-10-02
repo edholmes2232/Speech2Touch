@@ -1,6 +1,6 @@
 # Speech2Touch 🗣️👆
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/edholmes2232/Speech2Touch/actions)
+[![Build Firmware](https://github.com/edholmes2232/Speech2Touch/actions/workflows/build-firmware.yml/badge.svg)](https://github.com/edholmes2232/Speech2Touch/actions/workflows/build-firmware.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)
 [![Test Coverage](https://img.shields.io/badge/tests-pending-lightgrey)](https://github.com/edholmes2232/Speech2Touch/actions)
 
@@ -12,12 +12,17 @@ Based on STM32WB55, it leverages [Picovoice](https://picovoice.ai/) to process s
 
 The INMP441 MEMS microphone is used for voice input.
 
+**Pre-built firmware:** [Download latest](https://github.com/edholmes2232/Speech2Touch/actions/workflows/build-firmware.yml) (select latest successful run → Artifacts)
+
+**Coverage:** This project has been written about on [Hackaday](https://hackaday.com/2025/09/24/coffee-by-command-the-speech2touch-voice-hack/) and [Hackster.io](https://www.hackster.io/news/espresso-yourself-with-your-voice-b83a2757f170).
+
 ---
 
 ## ☕️ Demo
 
 https://github.com/user-attachments/assets/7025197e-daeb-4745-9b6d-d1ec124fa88a
 
+---
 
 ## 🤖 Prototype Hardware
 
@@ -27,6 +32,7 @@ https://github.com/user-attachments/assets/7025197e-daeb-4745-9b6d-d1ec124fa88a
 
 The shape and orientation of the protoboard were dictated by the position of the USB ports of the Franke A600.
 
+---
 
 ## 🏭 Hardware-In-Loop (HIL) Test
 
@@ -40,34 +46,43 @@ https://github.com/user-attachments/assets/d8d1ce1c-74fb-45fa-a442-dd6b9ee583c0
 - STM32WB55 USB Dongle dev board
 - INMP441 microphone
 - Franke A600 (or compatible) touchscreen device
-- QT (for HIL testing)
-- VSCode (for debugging)
-- [STM32Cube for Visual Studio Code](https://www.st.com/content/st_com/en/stm32-mcu-developer-zone/software-development-tools/stm32cubevscode.html) extension
+- Qt (for HIL testing)
+- VSCode with [STM32Cube extension](https://www.st.com/content/st_com/en/stm32-mcu-developer-zone/software-development-tools/stm32cubevscode.html)
+- See `Dockerfile` for toolchain and package requirements
 
 ### 🚀 Container Build & Flash (Recommended)
-Coming soon...
+
+1. Open in VSCode and reopen in dev container (`F1` → "Dev Containers: Reopen in Container")
+2. Configure and build:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=/workspaces/Speech2Touch/cmake/gcc-arm-none-eabi.cmake \
+  -S /workspaces/Speech2Touch -B /workspaces/Speech2Touch/build/Release -G Ninja
+cmake --build /workspaces/Speech2Touch/build/Release --target all
+```
+3. Flash `build/Release/Speech2Touch.bin` to your STM32WB55
 
 ### 🛠️ Manual Build & Flash
 
-1. Clone this repository.
-2. Set up the project in VSCode using the STM32Cube extension.
-3. Build and flash the firmware from VSCode menus.
-4. Connect the device to the coffee machine via USB.
+1. Clone this repository
+2. Set up the project in VSCode using the STM32Cube extension
+3. Build and flash the firmware from VSCode
+4. Connect the device to the coffee machine via USB
 
 ### 🧪 HIL Testing
 
-The Hardware-In-Loop test creates a QT GUI window which emulates the position of touch targets to match the Franke A600. It utilizes Linux text-to-speech utilities to trigger the device, and tests that the correct corresponding touch target is triggered.
+The Hardware-In-Loop test suite uses a Qt GUI to emulate the Franke A600 touchscreen layout. It leverages Linux text-to-speech utilities to trigger the device and validates that commands activate the correct touch targets.
 
-1. Build the QT test suite:
+1. Build the Qt test suite:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Test -S Speech2Touch -B Speech2Touch/build/Test -G Ninja
+cmake --build Speech2Touch/build/Test --target all
 ```
-$ cmake -DCMAKE_BUILD_TYPE=Test -S Speech2Touch -B Speech2Touch/build/Test -G Ninja
-$ cmake --build /home/ed/Projects/Speech2Touch/build/Test --target all --
-```
-2. Connect the embedded device with the latest firmware to the host PC USB port.
-3. Use `dmesg` to find the `/dev/input/eventX` USB input device path.
-4. Run automated test:
-```
-$ ./build/Test/Test/hil/runner/test_full_loop --input /dev/input/event10
+2. Connect the embedded device with the latest firmware to the host PC USB port
+3. Use `dmesg` to identify the `/dev/input/eventX` USB input device path
+4. Run the automated test:
+```bash
+./build/Test/Test/hil/runner/test_full_loop --input /dev/input/event10
 ```
 
 ---
@@ -75,12 +90,13 @@ $ ./build/Test/Test/hil/runner/test_full_loop --input /dev/input/event10
 ## 🏗️ Architecture Overview
 
 ```
-[INMP441 microphone] → [Picovoice Speech Recognition] → [STM32WB55 MCU] → [Custom USB HID] → [Touchscreen Device]
+[INMP441 Microphone] → [Picovoice Speech Recognition] → [STM32WB55 MCU] → [Custom USB HID] → [Touchscreen Device]
 ```
-- **Input:** Microphone captures user speech.
-- **Processing:** Picovoice library processes audio and extracts commands.
-- **Translation:** Commands are mapped to touchscreen coordinates.
-- **Output:** Custom USB HID packets simulate touch events on the target device.
+
+- **Input:** INMP441 microphone captures audio
+- **Processing:** Picovoice library performs speech recognition and command extraction
+- **Translation:** Commands are mapped to touchscreen coordinates
+- **Output:** Custom USB HID packets simulate touch events
 
 ### 🧵 Threading
 
@@ -100,25 +116,13 @@ sequenceDiagram
   end
 
   activate Speech
-  Speech->>Speech: Speech Regognition
-  Speech->>Speech: Convert to target co-ords
+  Speech->>Speech: Speech Recognition
+  Speech->>Speech: Convert to Target Coords
   deactivate Speech
 
   Speech->>Touch: Touch Coordinates
   Touch->>USB: USB HID Report
-
 ```
-
-
-
-
----
-
-## 🔬 HIL Testing Suite
-
-- **QT-based GUI** replicates the Franke A600 touchscreen.
-- **Automated tests** ensure voice commands map to correct on-screen buttons.
-- **Continuous integration** ready.
 
 ---
 
@@ -139,14 +143,13 @@ The Picovoice precompiled binary at `Core/Lib/picovoice/libpicovoice.a` is pulle
 The configuration files in `Core/Lib/picovoice/include` are specifically set up for a Franke A600, including using "Franke" as the wake-word. New configuration files can be generated from the [Picovoice Console](https://console.picovoice.ai/).
 
 ---
-## ☑️ To Do
-- Create .devcontainer for firmware builds within a container.
-- Replace Dev Board + Protoboard with a PCB.
-- Unit testing.
-- CI/CD with GitHub Actions for generating firmware, running unit tests.
-- Extract audio over RTT for tuning.
-- Decouple Franke A600 specific functionality for easier adapting of Speech2Touch to different applications. 
 
+## ☑️ Roadmap
+
+- Replace Dev Board + Protoboard with a PCB
+- Unit testing.
+- Extract audio over RTT for tuning.
+- Decouple Franke A600-specific functionality for easier adapting of Speech2Touch to different applications.
 
 ---
 
