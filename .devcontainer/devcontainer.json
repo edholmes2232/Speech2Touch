@@ -7,11 +7,17 @@
     "runArgs": [
         "--privileged"
     ],
+    // Mount USB devices for flashing firmware
+    "mounts": [
+        "source=/dev,target=/dev,type=bind"
+    ],
+    // Run commands after container is created
+    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-vscode.cmake-tools"
             ]
         }
-    },
+    }
 }
