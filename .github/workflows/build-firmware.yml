@@ -37,6 +37,7 @@ jobs:
         run: |
           # Create container with source mounted
           docker run -d --name s2t-build \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/workspaces/Speech2Touch \
             -w /workspaces/Speech2Touch \
             s2t-builder:latest \
@@ -75,6 +76,9 @@ jobs:
             ${{ github.workspace }}/build/Release/Speech2Touch.hex
           docker cp s2t-build:/workspaces/Speech2Touch/build/Release/Speech2Touch.map \
             ${{ github.workspace }}/build/Release/Speech2Touch.map
+          
+          # Ensure correct ownership
+          sudo chown -R $(id -u):$(id -g) ${{ github.workspace }}/build/Release/
           
           # Stop and remove container
           docker stop s2t-build
