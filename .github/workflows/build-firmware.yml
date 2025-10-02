@@ -16,6 +16,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      
+      - name: Create access key header
+        run: |
+          cat > Core/Lib/picovoice/include/pv_access_key.h << 'EOF'
+          #ifndef ACCESS_KEY_H
+          #define ACCESS_KEY_H
+          
+          // Picovoice Access Key
+          #define PV_ACCESS_KEY "${{ secrets.PV_ACCESS_KEY }}"
+          
+          #endif
+          EOF
 
       - name: Build Docker image
         run: |
