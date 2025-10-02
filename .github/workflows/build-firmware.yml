@@ -1,10 +1,10 @@
-name: Build Firmware
+name: 'Build Firmware'
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, feature/dev-container ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, feature/dev-container ]
   workflow_dispatch:
 
 jobs:
@@ -21,48 +21,71 @@ jobs:
         run: |
           docker build -t s2t-builder:latest -f .devcontainer/Dockerfile .devcontainer/
 
-      - name: Configure CMake
+      - name: Build firmware in container
         run: |
-          docker run --rm \
+          # Create container with source mounted
+          docker run -d --name s2t-build \
             -v ${{ github.workspace }}:/workspaces/Speech2Touch \
             -w /workspaces/Speech2Touch \
             s2t-builder:latest \
-            /usr/bin/cmake \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_TOOLCHAIN_FILE=/workspaces/Speech2Touch/cmake/gcc-arm-none-eabi.cmake \
-              -S /workspaces/Speech2Touch \
-              -B /workspaces/Speech2Touch/build/Release \
-              -G Ninja
+            tail -f /dev/null
+          
+          # Configure CMake
+          docker exec s2t-build /usr/bin/cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=/workspaces/Speech2Touch/cmake/gcc-arm-none-eabi.cmake \
+            -S /workspaces/Speech2Touch \
+            -B /workspaces/Speech2Touch/build/Release \
+            -G Ninja
+          
+          # Clean build
+          docker exec s2t-build /usr/bin/cmake \
+            --build /workspaces/Speech2Touch/build/Release --target clean --
+          
+          # Build firmware
+          docker exec s2t-build /usr/bin/cmake \
+            --build /workspaces/Speech2Touch/build/Release --target all --
+          
+          # List built files
+          docker exec s2t-build ls -la /workspaces/Speech2Touch/build/Release/
 
-      - name: Clean build
+      - name: Copy artifacts from container
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspaces/Speech2Touch \
-            -w /workspaces/Speech2Touch \
-            s2t-builder:latest \
-            /usr/bin/cmake --build /workspaces/Speech2Touch/build/Release --target clean --
+          # Create build directory on host
+          mkdir -p ${{ github.workspace }}/build/Release
+          
+          # Copy artifacts from container to host
+          docker cp s2t-build:/workspaces/Speech2Touch/build/Release/Speech2Touch.bin \
+            ${{ github.workspace }}/build/Release/Speech2Touch.bin
+          docker cp s2t-build:/workspaces/Speech2Touch/build/Release/Speech2Touch.elf \
+            ${{ github.workspace }}/build/Release/Speech2Touch.elf
+          docker cp s2t-build:/workspaces/Speech2Touch/build/Release/Speech2Touch.hex \
+            ${{ github.workspace }}/build/Release/Speech2Touch.hex
+          docker cp s2t-build:/workspaces/Speech2Touch/build/Release/Speech2Touch.map \
+            ${{ github.workspace }}/build/Release/Speech2Touch.map
+          
+          # Stop and remove container
+          docker stop s2t-build
+          docker rm s2t-build
 
-      - name: Build firmware
+      - name: Verify build artifacts
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspaces/Speech2Touch \
-            -w /workspaces/Speech2Touch \
-            s2t-builder:latest \
-            /usr/bin/cmake --build /workspaces/Speech2Touch/build/Release --target all --
+          echo "Build artifacts on host:"
+          ls -lah ${{ github.workspace }}/build/Release/
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: speech2touch-firmware-${{ github.sha }}
-          path: build/Release/Speech2Touch.bin
+          path: ${{ github.workspace }}/build/Release/Speech2Touch.bin
           if-no-files-found: error
           retention-days: 90
 
       - name: Upload firmware artifact (latest)
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v4
         with:
           name: speech2touch-firmware-latest
-          path: build/Release/Speech2Touch.bin
+          path: ${{ github.workspace }}/build/Release/Speech2Touch.bin
           if-no-files-found: error
           retention-days: 90
