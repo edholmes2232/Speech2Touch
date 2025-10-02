@@ -1,0 +1,68 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Docker image
+        run: |
+          docker build -t s2t-builder:latest -f .devcontainer/Dockerfile .devcontainer/
+
+      - name: Configure CMake
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspaces/Speech2Touch \
+            -w /workspaces/Speech2Touch \
+            s2t-builder:latest \
+            /usr/bin/cmake \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE=/workspaces/Speech2Touch/cmake/gcc-arm-none-eabi.cmake \
+              -S /workspaces/Speech2Touch \
+              -B /workspaces/Speech2Touch/build/Release \
+              -G Ninja
+
+      - name: Clean build
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspaces/Speech2Touch \
+            -w /workspaces/Speech2Touch \
+            s2t-builder:latest \
+            /usr/bin/cmake --build /workspaces/Speech2Touch/build/Release --target clean --
+
+      - name: Build firmware
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspaces/Speech2Touch \
+            -w /workspaces/Speech2Touch \
+            s2t-builder:latest \
+            /usr/bin/cmake --build /workspaces/Speech2Touch/build/Release --target all --
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speech2touch-firmware-${{ github.sha }}
+          path: build/Release/Speech2Touch.bin
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload firmware artifact (latest)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: speech2touch-firmware-latest
+          path: build/Release/Speech2Touch.bin
+          if-no-files-found: error
+          retention-days: 90
